@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TextInputMask } from "react-native-masked-text";
 import { StatusBar } from "expo-status-bar";
+import { createMotoboy } from "./services/api";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -99,8 +100,21 @@ export default function RegisterScreen() {
       // Remove máscaras dos campos
       const cleanPhoneNumber = phoneNumber.replace(/[^\d]/g, "");
       const cleanCPF = cpf.replace(/[^\d]/g, "");
+      const userCredential = await register(email, password);
 
-      await register(email, password, cleanPhoneNumber, cleanCPF, name);
+      // Obtém o UID do usuário recém-criado
+      const firebaseUid = userCredential.uid;
+
+      const motoboyData = {
+        email: email,
+        phoneNumber: cleanPhoneNumber,
+        cpf: cleanCPF,
+        name: name,
+        firebaseUid: firebaseUid,
+      };
+
+      await createMotoboy(motoboyData);
+
       router.replace("/(tabs)");
     } catch (error) {
       let errorMessage = "Erro ao registrar. Tente novamente.";
@@ -177,25 +191,22 @@ export default function RegisterScreen() {
               style={styles.input}
             />
 
-            <MaskedTextInput
+            <TextInput
               label="CPF"
               value={cpf}
               onChangeText={setCpf}
-              mask="cpf"
+              mode="outlined"
               keyboardType="numeric"
+              style={styles.input}
             />
 
-            <MaskedTextInput
+            <TextInput
               label="Celular"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
-              mask="cel-phone"
-              options={{
-                maskType: "BRL",
-                withDDD: true,
-                dddMask: "(99) ",
-              }}
+              mode="outlined"
               keyboardType="numeric"
+              style={styles.input}
             />
 
             <TextInput

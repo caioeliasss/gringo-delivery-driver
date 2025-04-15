@@ -13,6 +13,7 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Redirect } from "expo-router";
+import { getMotoboyMe } from "../services/api";
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
@@ -50,6 +51,9 @@ export default function HomeScreen() {
 
   // Toggle driver availability
   const toggleAvailability = () => {
+    const response = getMotoboyMe;
+    const motoboyData = response.data;
+    console.log(motoboyData);
     if (deliveryStatus === "offline") {
       setDeliveryStatus("online");
     } else if (deliveryStatus === "online") {

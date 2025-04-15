@@ -10,6 +10,22 @@ exports.getMotoboys = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+exports.getMotoboyMe = async (req, res) => {
+  try {
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
+    console.log(user, req.user.uid);
+    console.log(user);
+    if (!user) {
+      return res.status(404).json({ message: "Usuário não encontrado" });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+};
 
 // Get user by ID
 exports.getMotoboyById = async (req, res) => {
@@ -44,6 +60,7 @@ exports.createMotoboy = async (req, res) => {
     });
 
     const newMotoboy = await user.save();
+    console.log(newMotoboy);
     res.status(201).json(newMotoboy);
   } catch (error) {
     res.status(400).json({ message: error.message });

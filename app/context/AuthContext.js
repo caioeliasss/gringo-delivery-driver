@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Registro com campos adicionais (email, senha, celular, CPF)
-  const register = async (email, password, phoneNumber, cpf, name) => {
+  const register = async (email, password) => {
     try {
       // Criar usuário no Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
@@ -36,21 +36,6 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       );
-
-      // Adicionar displayName
-      await updateProfile(userCredential.user, {
-        displayName: name,
-      });
-
-      // Armazenar campos adicionais no Firestore
-      await setDoc(doc(db, "users", userCredential.user.uid), {
-        email,
-        phoneNumber,
-        cpf,
-        name,
-        createdAt: new Date().toISOString(),
-      });
-
       return userCredential.user;
     } catch (error) {
       throw error;
