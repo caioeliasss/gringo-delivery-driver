@@ -7,11 +7,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from "react-native";
 import { TextInput, Button, Text, Surface, Snackbar } from "react-native-paper";
 import { useAuth } from "./context/AuthContext";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -55,11 +57,19 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.container}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require("../assets/images/gringo-logo.png")}
+              style={styles.logo}
+            />
+          </View>
+
           <Surface style={styles.surface}>
             <Text variant="headlineMedium" style={styles.title}>
               Entrar
@@ -128,34 +138,47 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#EB2E3E", // Main red background
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "center",
     padding: 16,
   },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logo: {
+    width: 200,
+    height: 80,
+  },
   surface: {
     padding: 20,
     borderRadius: 8,
     elevation: 4,
+    backgroundColor: "#FFFFFF",
   },
   title: {
     textAlign: "center",
     marginBottom: 20,
+    color: "#EB2E3E", // Red text for the title
   },
   input: {
     marginBottom: 16,
+    backgroundColor: "#FFFFFF",
   },
   button: {
     marginTop: 8,
     marginBottom: 16,
+    backgroundColor: "#EB2E3E", // Red button
   },
   registerContainer: {
     flexDirection: "row",
     justifyContent: "center",
   },
   registerLink: {
-    color: "#6200ee",
+    color: "#EB2E3E", // Red link text
     fontWeight: "bold",
   },
 });
