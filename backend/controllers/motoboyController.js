@@ -24,7 +24,7 @@ exports.getMotoboyById = async (req, res) => {
   }
 };
 
-// Create user
+// Create user //TODO add Authentication
 exports.createMotoboy = async (req, res) => {
   try {
     // Check if user with firebaseUid already exists

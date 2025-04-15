@@ -24,6 +24,29 @@ const motoboySchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    cnh: {
+      type: String,
+      required: false,
+    },
+    isApproved: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    coordinates: {
+      type: [Number],
+      required: false,
+    },
+    score: {
+      type: Number,
+      required: true,
+      default: 4,
+    },
+    isAvailable: {
+      required: true,
+      default: true,
+      type: Boolean,
+    },
     firebaseUid: {
       type: String,
       required: true,
