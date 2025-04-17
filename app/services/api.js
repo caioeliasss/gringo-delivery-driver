@@ -35,6 +35,10 @@ export const getMotoboyMe = async () => {
   return api.get("/motoboys/me");
 };
 
+export const getMotoboyOrders = async () => {
+  return api.get("/motoboys/orders");
+};
+
 export const createMotoboy = async (motoboyData) => {
   return api.post("/motoboys", motoboyData);
 };

@@ -20,6 +20,7 @@ import {
 import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getMotoboyOrders } from "../services/api";
 
 // Sample delivery data
 const SAMPLE_DELIVERIES = [
@@ -95,10 +96,22 @@ export default function ExploreScreen() {
     border: colorScheme === "dark" ? "#444444" : "#E5E5E5",
     chipBackground: colorScheme === "dark" ? "#444444" : "#EEEEEE",
   };
-
+  const [motoboysOrders, setMotoboysOrders] = useState([{}]);
   // Load initial data
   useEffect(() => {
     // Simulate API call
+    const fetchPedidos = async () => {
+      try {
+        const response = await getMotoboyOrders();
+        const orders = response.data;
+        setMotoboysOrders(orders);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchPedidos();
+    console.log(motoboysOrders);
+
     setTimeout(() => {
       setDeliveries(SAMPLE_DELIVERIES);
       setLoading(false);

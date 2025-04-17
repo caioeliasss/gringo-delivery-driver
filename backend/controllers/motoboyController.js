@@ -1,5 +1,6 @@
 // backend/controllers/userController.js
 const Motoboy = require("../models/Motoboy");
+const Order = require("../models/Order");
 
 // Get all users
 exports.getMotoboys = async (req, res) => {
@@ -22,6 +23,28 @@ exports.getMotoboyMe = async (req, res) => {
     res
       .status(500)
       .json({ message: "Erro ao buscar usuário", error: error.message });
+  }
+};
+
+exports.getMotoboyOrders = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const order = await Order.find({
+      // orderDate: { $gte: today },
+      status: "pendente",
+      "motoboy.motoboyId": null,
+    });
+
+    if (!order || order.length === 0) {
+      return res.status(404).json({ message: "Não há pedidos disponíveis" });
+    }
+
+    res.status(200).json(order);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Erro ao buscar pedidos", error: error.message });
   }
 };
 
