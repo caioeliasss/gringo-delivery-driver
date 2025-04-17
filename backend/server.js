@@ -14,9 +14,9 @@ const app = express();
 
 // Inicializar o Firebase Admin SDK
 // Nota: Você precisará criar e baixar a serviceAccountKey.json do console do Firebase
-// admin.initializeApp({
-//   credential: admin.credential.cert(require('./config/serviceAccountKey.json'))
-// });
+admin.initializeApp({
+  credential: admin.credential.cert(require("./serviceAccountKey.json")),
+});
 
 // Middleware
 app.use(cors());

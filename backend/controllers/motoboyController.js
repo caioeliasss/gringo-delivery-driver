@@ -13,8 +13,6 @@ exports.getMotoboys = async (req, res) => {
 exports.getMotoboyMe = async (req, res) => {
   try {
     const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
-    console.log(user, req.user.uid);
-    console.log(user);
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
@@ -70,19 +68,63 @@ exports.createMotoboy = async (req, res) => {
 // Update user
 exports.updateMotoboy = async (req, res) => {
   try {
-    const user = await Motoboy.findById(req.params.id);
+    const user = await Motoboy.findOne({ firebaseUid: req.user.uid });
     if (!user) {
       return res.status(404).json({ message: "Usuário não encontrado" });
     }
 
+    // Campos básicos
     if (req.body.name) user.name = req.body.name;
     if (req.body.email) user.email = req.body.email;
     if (req.body.phoneNumber) user.phoneNumber = req.body.phoneNumber;
+    if (req.body.cpf) user.cpf = req.body.cpf;
+    if (req.body.cnh) user.cnh = req.body.cnh;
+
+    // Campos booleanos - verificar se não são undefined antes de atualizar
+    if (req.body.isApproved !== undefined)
+      user.isApproved = req.body.isApproved;
+    if (req.body.isAvailable !== undefined)
+      user.isAvailable = req.body.isAvailable;
+
+    // Campos numéricos
+    if (req.body.score !== undefined) user.score = req.body.score;
+
+    // Array de coordenadas
+    if (
+      req.body.coordinates &&
+      Array.isArray(req.body.coordinates) &&
+      req.body.coordinates.length === 2
+    ) {
+      user.coordinates = req.body.coordinates;
+    }
+
+    // Atualizar o timestamp manualmente (embora o schema já faça isso automaticamente)
+    user.updatedAt = Date.now();
 
     const updatedMotoboy = await user.save();
     res.json(updatedMotoboy);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    // Tratamento específico para erros de validação do MongoDB
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((val) => val.message);
+      return res.status(400).json({ message: messages.join(", ") });
+    }
+
+    // Tratamento para erros de duplicidade (emails ou CPF duplicados)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        message: `${
+          field === "email" ? "Email" : field === "cpf" ? "CPF" : field
+        } já está em uso.`,
+      });
+    }
+
+    // Outros erros
+    res.status(500).json({
+      message: "Erro ao atualizar usuário",
+      error: error.message,
+    });
   }
 };
 

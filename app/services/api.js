@@ -39,6 +39,10 @@ export const createMotoboy = async (motoboyData) => {
   return api.post("/motoboys", motoboyData);
 };
 
+export const updateMotoboy = async (motoboyData) => {
+  return api.put("/motoboys", motoboyData);
+};
+
 export const findNearestMotoboy = async (coords) => {
   return api.post("/motoboys/find-nearest", coords);
 };

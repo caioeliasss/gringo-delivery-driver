@@ -13,14 +13,14 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Redirect } from "expo-router";
-import { getMotoboyMe } from "../services/api";
+import { getMotoboyMe, getMotoboys, updateMotoboy } from "../services/api";
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const [appLoading, setAppLoading] = useState(true);
-  const [deliveryStatus, setDeliveryStatus] = useState("offline"); // 'offline', 'online', 'delivering'
+  const [deliveryStatus, setDeliveryStatus] = useState(true); // 'offline', 'online', 'delivering'
 
   // Check if user is authenticated
   if (!loading && !user) {
@@ -50,22 +50,23 @@ export default function HomeScreen() {
   };
 
   // Toggle driver availability
-  const toggleAvailability = () => {
-    const response = getMotoboyMe;
-    const motoboyData = response.data;
-    console.log(motoboyData);
-    if (deliveryStatus === "offline") {
-      setDeliveryStatus("online");
-    } else if (deliveryStatus === "online") {
-      setDeliveryStatus("offline");
+  const toggleAvailability = async () => {
+    try {
+      const response = await getMotoboyMe(); // Execute the function and await its result
+      const motoboyData = response.data; // Now response is the actual axios response
+      setDeliveryStatus(!motoboyData.isAvailable);
+
+      await updateMotoboy({ isAvailable: !motoboyData.isAvailable });
+    } catch (error) {
+      console.log("Error fetching motoboy data:", error);
     }
   };
 
   const getStatusColor = () => {
     switch (deliveryStatus) {
-      case "online":
+      case true:
         return colors.success;
-      case "delivering":
+      case false:
         return colors.secondary;
       default:
         return colors.subtext;
@@ -74,12 +75,12 @@ export default function HomeScreen() {
 
   const getStatusText = () => {
     switch (deliveryStatus) {
-      case "online":
+      case true:
         return "Disponível para entregas";
-      case "delivering":
+      case false:
         return "Em entrega";
       default:
-        return "Offline";
+        return false;
     }
   };
 
@@ -125,18 +126,17 @@ export default function HomeScreen() {
             </View>
 
             <Button
-              mode={deliveryStatus === "offline" ? "contained" : "outlined"}
+              mode={deliveryStatus === false ? "contained" : "outlined"}
               buttonColor={
-                deliveryStatus === "offline" ? colors.primary : "transparent"
+                deliveryStatus === false ? colors.primary : "transparent"
               }
               textColor={
-                deliveryStatus === "offline" ? colors.white : colors.primary
+                deliveryStatus === false ? colors.white : colors.primary
               }
               style={[styles.statusButton, { borderColor: colors.primary }]}
               onPress={toggleAvailability}
-              disabled={deliveryStatus === "delivering"}
             >
-              {deliveryStatus === "offline" ? "Ficar Online" : "Ficar Offline"}
+              {deliveryStatus === false ? "Ficar Online" : "Ficar Offline"}
             </Button>
           </Card.Content>
         </Card>
