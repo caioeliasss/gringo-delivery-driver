@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
         email,
         password
       );
-      return userCredential.user;
+      return userCredential; // Return the entire userCredential object
     } catch (error) {
       throw error;
     }

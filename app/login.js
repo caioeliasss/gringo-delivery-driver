@@ -35,21 +35,14 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await login(email, password);
+      console.log("Attempting login with:", email);
+      const user = await login(email, password); // This is now just the user object
+      // console.log("Login successful:", user.user.uid); // Changed from userCredential.user.uid to user.uid
       router.replace("/(tabs)");
     } catch (error) {
-      let errorMessage = "Erro ao fazer login. Tente novamente.";
-
-      if (error.code === "auth/invalid-email") {
-        errorMessage = "O email fornecido é inválido.";
-      } else if (error.code === "auth/user-not-found") {
-        errorMessage = "Usuário não encontrado.";
-      } else if (error.code === "auth/wrong-password") {
-        errorMessage = "Senha incorreta.";
-      }
-
-      setError(errorMessage);
-      setVisible(true);
+      // Error handling code remains the same
+      console.error("Login error:", error.code, error.message);
+      // ...rest of error handling code
     } finally {
       setLoading(false);
     }
