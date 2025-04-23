@@ -31,8 +31,8 @@ export const getMotoboys = async () => {
   return api.get("/motoboys");
 };
 
-export const getNotifications = async () => {
-  return api.get("/notifications");
+export const getNotifications = async (motoboyId) => {
+  return api.get("/notifications", { params: { motoboyId } });
 };
 
 export const getMotoboyMe = async () => {

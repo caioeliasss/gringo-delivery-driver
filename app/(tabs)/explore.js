@@ -20,7 +20,11 @@ import {
 import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getMotoboyOrders, getNotifications } from "../services/api";
+import {
+  getMotoboyMe,
+  getMotoboyOrders,
+  getNotifications,
+} from "../services/api";
 import { buscarCnpj } from "../services/cnpj";
 
 // Sample delivery data
@@ -103,12 +107,14 @@ export default function ExploreScreen() {
     // Simulate API call
     const fetchPedidos = async () => {
       try {
-        const response = await getNotifications();
+        let response = await getMotoboyMe();
+        const motoboy = response.data;
+        response = await getNotifications(motoboy._id);
         const notification = response.data;
-        setMotoboysOrders(notification);
         console.log(notification);
+        setMotoboysOrders(notification);
       } catch (error) {
-        console.log(error);
+        console.log(error.response.data);
       }
     };
     fetchPedidos();
