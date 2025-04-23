@@ -21,6 +21,7 @@ import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  createTravel,
   getMotoboyMe,
   getMotoboyOrders,
   getNotifications,
@@ -112,17 +113,14 @@ export default function ExploreScreen() {
         response = await getNotifications(motoboy._id);
         const notification = response.data;
         console.log(notification);
+        setDeliveries(notification);
         setMotoboysOrders(notification);
+        setLoading(false);
       } catch (error) {
         console.log(error.response.data);
       }
     };
     fetchPedidos();
-
-    setTimeout(() => {
-      setDeliveries(SAMPLE_DELIVERIES);
-      setLoading(false);
-    }, 1000);
   }, []);
 
   // Refresh data
@@ -152,10 +150,12 @@ export default function ExploreScreen() {
   });
 
   // Accept delivery action
-  const handleAcceptDelivery = (deliveryId) => {
-    console.log(`Accepted delivery ${deliveryId}`);
+  const handleAcceptDelivery = (delivery) => {
+    console.log(`Accepted delivery ${delivery}`);
     // In a real app, would call an API to accept the delivery
     // and navigate to a delivery details screen
+    const travelData = {};
+    createTravel(travelData);
   };
 
   if (loading) {
@@ -296,7 +296,7 @@ export default function ExploreScreen() {
               <Card.Content>
                 <View style={styles.restaurantRow}>
                   <Text style={[styles.restaurantName, { color: colors.text }]}>
-                    {delivery.restaurant}
+                    {delivery.title}
                   </Text>
                   <Chip
                     style={[
@@ -305,7 +305,7 @@ export default function ExploreScreen() {
                     ]}
                   >
                     <Text style={styles.priceText}>
-                      R$ {delivery.price.toFixed(2)}
+                      R$ {delivery.data.order.motoboy.price}
                     </Text>
                   </Chip>
                 </View>
@@ -318,7 +318,7 @@ export default function ExploreScreen() {
                       Retirada:
                     </Text>
                     <Text style={[styles.addressText, { color: colors.text }]}>
-                      {delivery.pickupAddress}
+                      {`${delivery.data.order.store.address.address}, ${delivery.data.order.store.address.addressNumber}, ${delivery.data.order.store.address.bairro}`}
                     </Text>
                   </View>
 
@@ -329,7 +329,7 @@ export default function ExploreScreen() {
                       Entrega:
                     </Text>
                     <Text style={[styles.addressText, { color: colors.text }]}>
-                      {delivery.deliveryAddress}
+                      {`${delivery.data.address.address}, ${delivery.data.address.addressNumber}, ${delivery.data.address.bairro}`}
                     </Text>
                   </View>
                 </View>
@@ -341,7 +341,7 @@ export default function ExploreScreen() {
                 <View style={styles.deliveryDetails}>
                   <View style={styles.detailItem}>
                     <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {delivery.distance} km
+                      {} km
                     </Text>
                     <Text
                       style={[styles.detailLabel, { color: colors.subtext }]}
@@ -350,7 +350,7 @@ export default function ExploreScreen() {
                     </Text>
                   </View>
 
-                  <View style={styles.detailItem}>
+                  {/* <View style={styles.detailItem}>
                     <Text style={[styles.detailValue, { color: colors.text }]}>
                       {delivery.time}
                     </Text>
@@ -359,13 +359,13 @@ export default function ExploreScreen() {
                     >
                       Tempo estimado
                     </Text>
-                  </View>
+                  </View> */}
 
                   <Button
                     mode="contained"
                     buttonColor={colors.primary}
                     style={styles.acceptButton}
-                    onPress={() => handleAcceptDelivery(delivery.id)}
+                    onPress={() => handleAcceptDelivery(delivery)}
                   >
                     Aceitar
                   </Button>

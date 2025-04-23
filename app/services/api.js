@@ -35,6 +35,10 @@ export const getNotifications = async (motoboyId) => {
   return api.get("/notifications", { params: { motoboyId } });
 };
 
+export const createTravel = async (travelData) => {
+  return api.post("/travels", travelData);
+};
+
 export const getMotoboyMe = async () => {
   return api.get("/motoboys/me");
 };
