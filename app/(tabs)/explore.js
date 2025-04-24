@@ -25,6 +25,7 @@ import {
   getMotoboyMe,
   getMotoboyOrders,
   getNotifications,
+  updateNotification,
 } from "../services/api";
 import { buscarCnpj } from "../services/cnpj";
 import { getWeather } from "../services/weather";
@@ -34,6 +35,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deliveries, setDeliveries] = useState([]);
+  const [motoboyId, setMotoboyId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all"); // 'all', 'food', 'pharmacy', 'grocery'
 
@@ -52,12 +54,31 @@ export default function ExploreScreen() {
   // Load initial data
   useEffect(() => {
     // Simulate API call
-    const fetchPedidos = async () => {
+    const fetchMotoboy = async () => {
       try {
         let response = await getMotoboyMe();
         const motoboy = response.data;
 
-        response = await getNotifications(motoboy._id);
+        setMotoboyId(motoboy._id);
+        setLoading(false);
+      } catch (error) {
+        console.log(error.response.data);
+      }
+    };
+
+    setTimeout(() => {
+      fetchMotoboy();
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    if (!motoboyId) {
+      return;
+    }
+    // Simulate API call
+    const fetchPedidos = async () => {
+      try {
+        response = await getNotifications(motoboyId);
         const notification = response.data;
 
         setDeliveries(notification);
@@ -73,10 +94,7 @@ export default function ExploreScreen() {
   const onRefresh = () => {
     const fetchPedidos = async () => {
       try {
-        let response = await getMotoboyMe();
-        const motoboy = response.data;
-
-        response = await getNotifications(motoboy._id);
+        response = await getNotifications(motoboyId);
         const notification = response.data;
 
         setDeliveries(notification);
@@ -113,7 +131,6 @@ export default function ExploreScreen() {
   // Accept delivery action
   const handleAcceptDelivery = async (delivery) => {
     let isRain;
-    let travelDistance;
     try {
       const [latitude, longitude] = delivery.data.order.store.coordinates;
 
@@ -137,6 +154,7 @@ export default function ExploreScreen() {
       order: delivery.data.order,
     };
     try {
+      await updateNotification({ id: delivery._id, status: "ACCEPTED" });
       await createTravel(travelData);
     } catch (error) {
       console.log(error);
@@ -326,7 +344,7 @@ export default function ExploreScreen() {
                 <View style={styles.deliveryDetails}>
                   <View style={styles.detailItem}>
                     <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {} km
+                      {delivery.data.order.delivery.distance.toFixed(1)} km
                     </Text>
                     <Text
                       style={[styles.detailLabel, { color: colors.subtext }]}

@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const [appLoading, setAppLoading] = useState(true);
   const [deliveryStatus, setDeliveryStatus] = useState(true); // 'offline', 'online', 'delivering'
-
+  const [motoboy, setMotoboy] = useState({});
   // Check if user is authenticated
   if (!loading && !user) {
     return <Redirect href="/login" />;
@@ -29,11 +29,20 @@ export default function HomeScreen() {
 
   // Simulating data loading
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setAppLoading(false);
+    const defineStatus = async () => {
+      try {
+        const response = await getMotoboyMe(); // Execute the function and await its result
+        const motoboyData = response.data; // Now response is the actual axios response
+        setDeliveryStatus(motoboyData.isAvailable);
+        setMotoboy(motoboyData);
+        setAppLoading(false);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    setTimeout(() => {
+      defineStatus();
     }, 1000);
-
-    return () => clearTimeout(timer);
   }, []);
 
   // Determine colors based on color scheme
@@ -109,7 +118,7 @@ export default function HomeScreen() {
           <Card.Content style={styles.statusCard}>
             <View>
               <Text style={[styles.welcomeText, { color: colors.text }]}>
-                Olá, {user?.displayName?.split(" ")[0] || "Entregador"}
+                Olá, {motoboy.name || "Entregador"}
               </Text>
               <View style={styles.statusContainer}>
                 <Badge
