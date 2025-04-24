@@ -27,60 +27,7 @@ import {
   getNotifications,
 } from "../services/api";
 import { buscarCnpj } from "../services/cnpj";
-
-// Sample delivery data
-const SAMPLE_DELIVERIES = [
-  {
-    id: "1",
-    restaurant: "Restaurante Sabor Mineiro",
-    pickupAddress: "Av. Paulista, 1000, São Paulo",
-    deliveryAddress: "Rua Augusta, 500, Apto 42, São Paulo",
-    distance: 3.2,
-    price: 15.5,
-    time: "20-30 min",
-    type: "food",
-  },
-  {
-    id: "2",
-    restaurant: "Farmácia Bem Estar",
-    pickupAddress: "Rua Oscar Freire, 200, São Paulo",
-    deliveryAddress: "Alameda Santos, 800, São Paulo",
-    distance: 2.1,
-    price: 12.0,
-    time: "15-25 min",
-    type: "pharmacy",
-  },
-  {
-    id: "3",
-    restaurant: "Supermercado Dia",
-    pickupAddress: "Rua Haddock Lobo, 595, São Paulo",
-    deliveryAddress: "Rua da Consolação, 1200, São Paulo",
-    distance: 4.5,
-    price: 18.75,
-    time: "25-35 min",
-    type: "grocery",
-  },
-  {
-    id: "4",
-    restaurant: "La Pasta Italiana",
-    pickupAddress: "Av. Rebouças, 1200, São Paulo",
-    deliveryAddress: "Rua dos Pinheiros, 350, São Paulo",
-    distance: 3.8,
-    price: 16.25,
-    time: "20-30 min",
-    type: "food",
-  },
-  {
-    id: "5",
-    restaurant: "Açaí Paradise",
-    pickupAddress: "Av. Brigadeiro Faria Lima, 1500, São Paulo",
-    deliveryAddress: "Rua Teodoro Sampaio, 800, São Paulo",
-    distance: 2.9,
-    price: 14.0,
-    time: "15-25 min",
-    type: "food",
-  },
-];
+import { getWeather } from "../services/weather";
 
 export default function ExploreScreen() {
   const colorScheme = useColorScheme();
@@ -102,7 +49,6 @@ export default function ExploreScreen() {
     border: colorScheme === "dark" ? "#444444" : "#E5E5E5",
     chipBackground: colorScheme === "dark" ? "#444444" : "#EEEEEE",
   };
-  const [motoboysOrders, setMotoboysOrders] = useState([{}]);
   // Load initial data
   useEffect(() => {
     // Simulate API call
@@ -110,11 +56,11 @@ export default function ExploreScreen() {
       try {
         let response = await getMotoboyMe();
         const motoboy = response.data;
+
         response = await getNotifications(motoboy._id);
         const notification = response.data;
-        console.log(notification);
+
         setDeliveries(notification);
-        setMotoboysOrders(notification);
         setLoading(false);
       } catch (error) {
         console.log(error.response.data);
@@ -125,6 +71,21 @@ export default function ExploreScreen() {
 
   // Refresh data
   const onRefresh = () => {
+    const fetchPedidos = async () => {
+      try {
+        let response = await getMotoboyMe();
+        const motoboy = response.data;
+
+        response = await getNotifications(motoboy._id);
+        const notification = response.data;
+
+        setDeliveries(notification);
+        setLoading(false);
+      } catch (error) {
+        console.log(error.response.data);
+      }
+    };
+    fetchPedidos();
     setRefreshing(true);
     // Simulate refresh
     setTimeout(() => {
@@ -150,12 +111,36 @@ export default function ExploreScreen() {
   });
 
   // Accept delivery action
-  const handleAcceptDelivery = (delivery) => {
-    console.log(`Accepted delivery ${delivery}`);
-    // In a real app, would call an API to accept the delivery
-    // and navigate to a delivery details screen
-    const travelData = {};
-    createTravel(travelData);
+  const handleAcceptDelivery = async (delivery) => {
+    let isRain;
+    let travelDistance;
+    try {
+      const [latitude, longitude] = delivery.data.order.store.coordinates;
+
+      const response = await getWeather(latitude, longitude);
+
+      if (response.current.rain < 2.4) {
+        isRain = false;
+      } else {
+        isRain = true;
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+    const travelData = {
+      price: delivery.data.order.motoboy.price,
+      rain: isRain,
+      distance: delivery.data.order.delivery.distance, //TODO Calcular distancia de todos os pedidos
+      coordinatesFrom: delivery.data.order.store.coordinates,
+      coordinatesTo: delivery.data.order.customer.customerAddress.coordinates, //FIXME
+      order: delivery.data.order,
+    };
+    try {
+      await createTravel(travelData);
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   if (loading) {
@@ -290,7 +275,7 @@ export default function ExploreScreen() {
         ) : (
           filteredDeliveries.map((delivery) => (
             <Card
-              key={delivery.id}
+              key={delivery._id}
               style={[styles.deliveryCard, { backgroundColor: colors.card }]}
             >
               <Card.Content>
