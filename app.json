@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Gringo",
+    "name": "Gringo Delivery",
     "slug": "gringo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,6 +24,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Gringo to use your location to track your deliveries."
+        }
+      ],
       [
         "expo-splash-screen",
         {

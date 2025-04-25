@@ -1,49 +1,59 @@
 // app/(tabs)/index.js
-import React, { useState, useEffect } from "react";
-import { StyleSheet, View, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { StyleSheet, View, ScrollView, Dimensions } from "react-native";
 import {
   Card,
   Text,
   Button,
   ActivityIndicator,
   Badge,
+  FAB,
 } from "react-native-paper";
 import { useAuth } from "../context/AuthContext";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Redirect } from "expo-router";
-import { getMotoboyMe, getMotoboys, updateMotoboy } from "../services/api";
+import { getMotoboyMe, updateMotoboy } from "../services/api";
+import MapView, { Marker, Circle } from "react-native-maps";
+import * as Location from "expo-location";
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const [appLoading, setAppLoading] = useState(true);
-  const [deliveryStatus, setDeliveryStatus] = useState(true); // 'offline', 'online', 'delivering'
+  const [deliveryStatus, setDeliveryStatus] = useState(true);
   const [motoboy, setMotoboy] = useState({});
+  const [location, setLocation] = useState(null);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const mapRef = useRef(null);
+
+  // Demo data - substitua isso com os dados do seu banco
+  // Exemplo de pontos de interesse para mostrar no mapa
+  const [pontosDeInteresse, setPontosDeInteresse] = useState([
+    {
+      id: 1,
+      nome: "Restaurante Exemplo",
+      coordinates: {
+        latitude: -22.905,
+        longitude: -47.06,
+      },
+    },
+    {
+      id: 2,
+      nome: "Cliente Exemplo",
+      coordinates: {
+        latitude: -22.91,
+        longitude: -47.057,
+      },
+    },
+  ]);
+
   // Check if user is authenticated
   if (!loading && !user) {
     return <Redirect href="/login" />;
   }
-
-  // Simulating data loading
-  useEffect(() => {
-    const defineStatus = async () => {
-      try {
-        const response = await getMotoboyMe(); // Execute the function and await its result
-        const motoboyData = response.data; // Now response is the actual axios response
-        setDeliveryStatus(motoboyData.isAvailable);
-        setMotoboy(motoboyData);
-        setAppLoading(false);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-    setTimeout(() => {
-      defineStatus();
-    }, 1000);
-  }, []);
 
   // Determine colors based on color scheme
   const colors = {
@@ -58,39 +68,152 @@ export default function HomeScreen() {
     border: colorScheme === "dark" ? "#444444" : "#E5E5E5",
   };
 
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Get motoboy profile data
+        const response = await getMotoboyMe();
+        const motoboyData = response.data;
+        setDeliveryStatus(motoboyData.isAvailable);
+        setMotoboy(motoboyData);
+
+        // Request location permissions
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setErrorMsg("Permissão de acesso à localização negada");
+          setAppLoading(false);
+          return;
+        }
+
+        // Get current location
+        let currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setLocation(currentLocation);
+
+        // Atualizar pontos de interesse com base na localização atual (simulação)
+        // Aqui você poderia buscar pontos próximos do seu banco de dados
+        if (currentLocation) {
+          // Ajustar os pontos de interesse para ficarem próximos à localização atual
+          const pontosAtualizados = pontosDeInteresse.map((ponto, index) => ({
+            ...ponto,
+            coordinates: {
+              latitude: currentLocation.coords.latitude + index * 0.0015,
+              longitude: currentLocation.coords.longitude + index * 0.0015,
+            },
+          }));
+          setPontosDeInteresse(pontosAtualizados);
+        }
+
+        // Update motoboy location in backend
+        if (motoboyData && currentLocation) {
+          try {
+            await updateMotoboy({
+              coordinates: [
+                currentLocation.coords.longitude,
+                currentLocation.coords.latitude,
+              ],
+            });
+          } catch (locationError) {
+            console.error("Falha ao atualizar localização:", locationError);
+          }
+        }
+
+        setAppLoading(false);
+      } catch (error) {
+        console.error("Erro ao buscar dados:", error);
+        setAppLoading(false);
+      }
+    }
+
+    loadData();
+
+    // Location tracking subscription
+    let locationSubscription;
+
+    async function setupLocationTracking() {
+      try {
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            distanceInterval: 5, // metros
+            timeInterval: 3000, // 3 segundos
+          },
+          (newLocation) => {
+            setLocation(newLocation);
+
+            // Only update location in backend when online
+            if (deliveryStatus) {
+              updateMotoboy({
+                coordinates: [
+                  newLocation.coords.longitude,
+                  newLocation.coords.latitude,
+                ],
+              }).catch((err) =>
+                console.error("Erro ao atualizar localização:", err)
+              );
+            }
+          }
+        );
+      } catch (error) {
+        console.error("Erro ao iniciar rastreamento de localização:", error);
+      }
+    }
+
+    // Start tracking if we have permissions
+    if (!errorMsg) {
+      setupLocationTracking();
+    }
+
+    // Cleanup function
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, [deliveryStatus]);
+
+  // Centralizar o mapa na posição atual
+  const centralizarMapa = () => {
+    if (location && mapRef.current) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          latitudeDelta: 0.005,
+          longitudeDelta: 0.005,
+        },
+        1000
+      ); // 1000ms de animação
+    }
+  };
+
   // Toggle driver availability
   const toggleAvailability = async () => {
     try {
-      const response = await getMotoboyMe(); // Execute the function and await its result
-      const motoboyData = response.data; // Now response is the actual axios response
-      setDeliveryStatus(!motoboyData.isAvailable);
+      const response = await getMotoboyMe();
+      const motoboyData = response.data;
+      const newStatus = !motoboyData.isAvailable;
 
-      await updateMotoboy({ isAvailable: !motoboyData.isAvailable });
+      setDeliveryStatus(newStatus);
+
+      await updateMotoboy({
+        isAvailable: newStatus,
+        coordinates: location
+          ? [location.coords.longitude, location.coords.latitude]
+          : undefined,
+      });
     } catch (error) {
-      console.log("Error fetching motoboy data:", error);
+      console.error("Erro ao alternar disponibilidade:", error);
     }
   };
 
   const getStatusColor = () => {
-    switch (deliveryStatus) {
-      case true:
-        return colors.success;
-      case false:
-        return colors.secondary;
-      default:
-        return colors.subtext;
-    }
+    return deliveryStatus ? colors.success : colors.secondary;
   };
 
   const getStatusText = () => {
-    switch (deliveryStatus) {
-      case true:
-        return "Disponível para entregas";
-      case false:
-        return "Em entrega";
-      default:
-        return false;
-    }
+    return deliveryStatus ? "Disponível para entregas" : "Offline";
   };
 
   if (loading || appLoading) {
@@ -106,14 +229,76 @@ export default function HomeScreen() {
     );
   }
 
-  // Rest of your component stays the same...
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: colors.background }]}
-    >
+    <SafeAreaView style={styles.container}>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Status Card */}
+
+      {/* Map Container */}
+      <View style={styles.mapContainer}>
+        {location ? (
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={{
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+              latitudeDelta: 0.008,
+              longitudeDelta: 0.008,
+            }}
+            showsUserLocation={true}
+            showsCompass={true}
+            showsScale={true}
+            rotateEnabled={true}
+          >
+            {/* Current Location Marker */}
+            <Marker
+              coordinate={{
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }}
+              title={motoboy.name || "Sua posição"}
+              description={getStatusText()}
+              pinColor={deliveryStatus ? "green" : "orange"}
+            />
+
+            {/* Location Accuracy Circle */}
+            <Circle
+              center={{
+                latitude: location.coords.latitude,
+                longitude: location.coords.longitude,
+              }}
+              radius={location.coords.accuracy || 50}
+              fillColor="rgba(66, 133, 244, 0.2)"
+              strokeColor="rgba(66, 133, 244, 0.5)"
+              strokeWidth={1}
+            />
+
+            {/* Pontos de interesse no mapa */}
+            {pontosDeInteresse.map((ponto) => (
+              <Marker
+                key={ponto.id}
+                coordinate={ponto.coordinates}
+                title={ponto.nome}
+                pinColor="#EB2E3E"
+              />
+            ))}
+          </MapView>
+        ) : (
+          <View
+            style={[
+              styles.noLocationContainer,
+              { backgroundColor: colors.background },
+            ]}
+          >
+            <Text style={{ color: colors.text }}>
+              {errorMsg || "Obtendo sua localização..."}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Status Card */}
+      <View style={styles.cardContainer}>
         <Card style={[styles.card, { backgroundColor: colors.card }]}>
           <Card.Content style={styles.statusCard}>
             <View>
@@ -135,24 +320,25 @@ export default function HomeScreen() {
             </View>
 
             <Button
-              mode={deliveryStatus === false ? "contained" : "outlined"}
-              buttonColor={
-                deliveryStatus === false ? colors.primary : "transparent"
-              }
-              textColor={
-                deliveryStatus === false ? colors.white : colors.primary
-              }
+              mode={deliveryStatus ? "outlined" : "contained"}
+              buttonColor={deliveryStatus ? "transparent" : colors.primary}
+              textColor={deliveryStatus ? colors.primary : colors.white}
               style={[styles.statusButton, { borderColor: colors.primary }]}
               onPress={toggleAvailability}
             >
-              {deliveryStatus === false ? "Ficar Online" : "Ficar Offline"}
+              {deliveryStatus ? "Ficar Offline" : "Ficar Online"}
             </Button>
           </Card.Content>
         </Card>
+      </View>
 
-        {/* Keep the rest of your JSX here */}
-        {/* ... */}
-      </ScrollView>
+      {/* Botão para centralizar mapa */}
+      <FAB
+        style={[styles.fab, { backgroundColor: colors.primary }]}
+        icon="crosshairs-gps"
+        color={colors.white}
+        onPress={centralizarMapa}
+      />
     </SafeAreaView>
   );
 }
@@ -166,13 +352,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollContent: {
-    padding: 16,
+  mapContainer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  noLocationContainer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cardContainer: {
+    position: "absolute",
+    top: 20,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    zIndex: 1,
   },
   card: {
     marginBottom: 16,
     borderRadius: 8,
-    elevation: 2,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statusCard: {
     flexDirection: "row",
@@ -197,6 +403,10 @@ const styles = StyleSheet.create({
   statusButton: {
     borderRadius: 20,
   },
-  // Include the rest of your styles here
-  // ...
+  fab: {
+    position: "absolute",
+    margin: 16,
+    right: 0,
+    bottom: 24,
+  },
 });
