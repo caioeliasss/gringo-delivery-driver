@@ -51,43 +51,34 @@ export default function ExploreScreen() {
     border: colorScheme === "dark" ? "#444444" : "#E5E5E5",
     chipBackground: colorScheme === "dark" ? "#444444" : "#EEEEEE",
   };
-  // Load initial data
+
   useEffect(() => {
     // Simulate API call
-    const fetchMotoboy = async () => {
+    const fetchPedidos = async () => {
+      let motoboy_id;
       try {
         let response = await getMotoboyMe();
         const motoboy = response.data;
 
-        setMotoboyId(motoboy._id);
-        setLoading(false);
+        motoboy_id = motoboy._id;
+        setMotoboyId(motoboy_id);
       } catch (error) {
         console.log(error.response.data);
       }
-    };
 
-    setTimeout(() => {
-      fetchMotoboy();
-    }, 1000);
-  }, []);
-
-  useEffect(() => {
-    if (!motoboyId) {
-      return;
-    }
-    // Simulate API call
-    const fetchPedidos = async () => {
+      console.log(motoboy_id);
       try {
-        response = await getNotifications(motoboyId);
+        response = await getNotifications(motoboy_id);
         const notification = response.data;
-
         setDeliveries(notification);
         setLoading(false);
       } catch (error) {
         console.log(error.response.data);
       }
     };
-    fetchPedidos();
+    setTimeout(() => {
+      fetchPedidos();
+    }, 1000);
   }, []);
 
   // Refresh data
@@ -154,8 +145,10 @@ export default function ExploreScreen() {
       order: delivery.data.order,
     };
     try {
+      console.log(travelData);
       await updateNotification({ id: delivery._id, status: "ACCEPTED" });
       await createTravel(travelData);
+      setDeliveries([]);
     } catch (error) {
       console.log(error);
     }

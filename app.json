@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "gringo-delivery-driver",
-    "slug": "gringo-delivery-driver",
+    "name": "Gringo",
+    "slug": "gringo",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/favicon_trim.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/gringo-logo-colorida.png",
+    "scheme": "gringo-gelivery",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -13,7 +13,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo-sem-fundo.png",
+        "foregroundImage": "./assets/images/gringo-logo-colorida.png",
         "backgroundColor": "#ffffff"
       }
     },
@@ -27,7 +27,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo-sem-fundo.png",
+          "image": "./assets/images/gringo-logo-colorida.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"

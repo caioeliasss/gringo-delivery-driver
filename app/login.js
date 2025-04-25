@@ -37,7 +37,7 @@ export default function LoginScreen() {
     try {
       console.log("Attempting login with:", email);
       const user = await login(email, password); // This is now just the user object
-      // console.log("Login successful:", user.user.uid); // Changed from userCredential.user.uid to user.uid
+      console.log("Login successful:", user.user.uid); // Changed from userCredential.user.uid to user.uid
       router.replace("/(tabs)");
     } catch (error) {
       // Error handling code remains the same
