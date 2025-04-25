@@ -250,17 +250,6 @@ export default function HomeScreen() {
             showsScale={true}
             rotateEnabled={true}
           >
-            {/* Current Location Marker */}
-            <Marker
-              coordinate={{
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude,
-              }}
-              title={motoboy.name || "Sua posição"}
-              description={getStatusText()}
-              pinColor={deliveryStatus ? "green" : "orange"}
-            />
-
             {/* Location Accuracy Circle */}
             <Circle
               center={{
@@ -272,16 +261,11 @@ export default function HomeScreen() {
               strokeColor="rgba(66, 133, 244, 0.5)"
               strokeWidth={1}
             />
-
-            {/* Pontos de interesse no mapa */}
-            {pontosDeInteresse.map((ponto) => (
-              <Marker
-                key={ponto.id}
-                coordinate={ponto.coordinates}
-                title={ponto.nome}
-                pinColor="#EB2E3E"
-              />
-            ))}
+            <MapViewDirections
+              origin={origin}
+              destination={destination}
+              apikey={GOOGLE_MAPS_APIKEY}
+            />
           </MapView>
         ) : (
           <View
