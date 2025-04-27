@@ -109,6 +109,7 @@ export default function HomeScreen() {
         if (motoboyData && currentLocation) {
           try {
             await updateMotoboy({
+              //FIXME motoboy coords backend
               coordinates: [
                 currentLocation.coords.longitude,
                 currentLocation.coords.latitude,
@@ -261,11 +262,11 @@ export default function HomeScreen() {
               strokeColor="rgba(66, 133, 244, 0.5)"
               strokeWidth={1}
             />
-            <MapViewDirections
+            {/* <MapViewDirections
               origin={origin}
               destination={destination}
               apikey={GOOGLE_MAPS_APIKEY}
-            />
+            /> */}
           </MapView>
         ) : (
           <View

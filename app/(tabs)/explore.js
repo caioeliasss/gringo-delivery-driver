@@ -26,9 +26,12 @@ import {
   getMotoboyOrders,
   getNotifications,
   updateNotification,
+  updateOrderStatus,
 } from "../services/api";
 import { buscarCnpj } from "../services/cnpj";
 import { getWeather } from "../services/weather";
+import { useAuth } from "../context/AuthContext";
+import eventService from "../services/eventService";
 
 export default function ExploreScreen() {
   const colorScheme = useColorScheme();
@@ -38,6 +41,7 @@ export default function ExploreScreen() {
   const [motoboyId, setMotoboyId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all"); // 'all', 'food', 'pharmacy', 'grocery'
+  const { user, logout } = useAuth();
 
   // Define app colors
   const colors = {
@@ -53,7 +57,36 @@ export default function ExploreScreen() {
   };
 
   useEffect(() => {
-    // Simulate API call
+    // Só conectar o SSE se o usuário estiver autenticado
+    if (user) {
+      // Conectar com o UID do usuário atual como identificador da loja
+      eventService.connect(user.uid);
+      console.log("connectado com o user: ", user.uid);
+
+      // Configurar manipulador para atualizações de pedidos
+      const handleOrderUpdate = (orderData) => {
+        console.log("Atualização de pedido recebida:", orderData);
+
+        // Atualizar o pedido na lista local se o pedido já existir
+        setDeliveries((prevPedidos) =>
+          prevPedidos.map((pedido) =>
+            pedido._id === orderData._id ? { ...pedido, ...orderData } : pedido
+          )
+        );
+      };
+
+      // Registrar o manipulador de eventos
+      eventService.on("notificationUpdate", handleOrderUpdate);
+
+      // Limpar na desmontagem
+      return () => {
+        eventService.off("notificationUpdate", handleOrderUpdate);
+        // Não desconectar, pois outros componentes podem precisar da conexão
+      };
+    }
+  }, [user]);
+
+  useEffect(() => {
     const fetchPedidos = async () => {
       let motoboy_id;
       try {
@@ -65,8 +98,6 @@ export default function ExploreScreen() {
       } catch (error) {
         console.log(error.response.data);
       }
-
-      console.log(motoboy_id);
       try {
         response = await getNotifications(motoboy_id);
         const notification = response.data;
@@ -121,6 +152,8 @@ export default function ExploreScreen() {
 
   // Accept delivery action
   const handleAcceptDelivery = async (delivery) => {
+    setDeliveries([]);
+
     let isRain;
     try {
       const [latitude, longitude] = delivery.data.order.store.coordinates;
@@ -145,10 +178,13 @@ export default function ExploreScreen() {
       order: delivery.data.order,
     };
     try {
-      console.log(travelData);
-      await updateNotification({ id: delivery._id, status: "ACCEPTED" });
+      // console.log(travelData);
+      await updateOrderStatus({
+        id: delivery.data.order._id,
+        status: "em_preparo",
+      });
+      // await updateNotification({ id: delivery._id, status: "ACCEPTED" });
       await createTravel(travelData);
-      setDeliveries([]);
     } catch (error) {
       console.log(error);
     }

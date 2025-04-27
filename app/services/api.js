@@ -15,7 +15,7 @@ const getBaseUrl = () => {
 
 const API_URL = getBaseUrl();
 
-console.log(process.env.REACT_APP_API_URL);
+console.log(API_URL);
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -29,6 +29,7 @@ api.interceptors.request.use(
     const user = auth.currentUser;
     if (user) {
       const token = await user.getIdToken();
+      // console.log(token);
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -49,6 +50,11 @@ export const getNotifications = async (motoboyId) => {
 
 export const updateNotification = async (notificationData) => {
   return api.put("/notifications", notificationData);
+};
+
+export const updateOrderStatus = async (notificationData) => {
+  console.log(api, API_URL);
+  return api.put(`/orders/status`, notificationData);
 };
 
 export const createTravel = async (travelData) => {
