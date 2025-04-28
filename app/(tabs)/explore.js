@@ -57,31 +57,43 @@ export default function ExploreScreen() {
   };
 
   useEffect(() => {
-    // Só conectar o SSE se o usuário estiver autenticado
     if (user) {
-      // Conectar com o UID do usuário atual como identificador da loja
+      // Conectar com o SSE
       eventService.connect(user.uid);
-      console.log("connectado com o user: ", user.uid);
+      console.log("Conectado com o user:", user.uid);
 
-      // Configurar manipulador para atualizações de pedidos
-      const handleOrderUpdate = (orderData) => {
-        console.log("Atualização de pedido recebida:", orderData);
+      // Registrar manipulador de eventos com logs
+      const handleOrderUpdate = async (orderData) => {
+        let motoboy_id;
+        try {
+          let response = await getMotoboyMe();
+          const motoboy = response.data;
 
-        // Atualizar o pedido na lista local se o pedido já existir
-        setDeliveries((prevPedidos) =>
-          prevPedidos.map((pedido) =>
-            pedido._id === orderData._id ? { ...pedido, ...orderData } : pedido
-          )
-        );
+          motoboy_id = motoboy._id;
+          setMotoboyId(motoboy_id);
+        } catch (error) {
+          console.log(error.response.data);
+        }
+        try {
+          response = await getNotifications(motoboy_id);
+          const notification = response.data;
+          setDeliveries(notification);
+          setLoading(false);
+        } catch (error) {
+          console.log(error.response.data);
+        }
       };
 
-      // Registrar o manipulador de eventos
+      // Registrar evento e verificar se foi registrado corretamente
       eventService.on("notificationUpdate", handleOrderUpdate);
+      eventService.on("*", (data) => {
+        console.log("Evento genérico recebido:", data);
+        // Tentar identificar o formato real dos eventos
+      });
 
-      // Limpar na desmontagem
       return () => {
+        console.log("Desmontando componente, removendo listener");
         eventService.off("notificationUpdate", handleOrderUpdate);
-        // Não desconectar, pois outros componentes podem precisar da conexão
       };
     }
   }, [user]);
@@ -118,7 +130,6 @@ export default function ExploreScreen() {
       try {
         response = await getNotifications(motoboyId);
         const notification = response.data;
-
         setDeliveries(notification);
         setLoading(false);
       } catch (error) {

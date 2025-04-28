@@ -14,37 +14,40 @@ class EventService {
   // Conectar ao servidor de eventos
   connect(storeId) {
     if (this.eventSource) {
-      // Já existe uma conexão
-      return;
+      this.eventSource.close();
+      this.eventSource = null;
     }
 
     this.storeId = storeId;
-
-    // Construir URL com ID da loja
     const baseUrl =
       process.env.REACT_APP_API_URL || "http://192.168.15.24:8080/api";
     const eventsUrl =
       baseUrl.replace("/api", "") + `/api/events?storeId=${storeId}`;
 
+    console.log("Conectando SSE em:", eventsUrl);
+
     try {
-      // Criar fonte de eventos
       this.eventSource = new EventSource(eventsUrl);
 
       // Manipulador de conexão
-      this.eventSource.onopen = () => {
+      this.eventSource.addEventListener("open", () => {
         console.log("SSE conectado");
         this.isConnected = true;
         this.reconnectAttempts = 0;
-      };
+      });
 
-      // Manipulador de mensagens
-      this.eventSource.onmessage = (event) => {
+      // Manipulador de mensagens - USAR addEventListener em vez de onmessage
+      this.eventSource.addEventListener("message", (event) => {
+        // console.log("Evento recebido:", event);
+
         try {
+          // Parse da string JSON nos dados do evento
           const eventData = JSON.parse(event.data);
-          console.log("Evento recebido:", eventData);
+          // console.log("Dados parseados:", eventData);
 
-          // Notificar ouvintes do tipo de evento
+          // Verificar tipo e notificar listeners
           if (eventData.type && this.listeners.has(eventData.type)) {
+            // console.log(`Executando callbacks para ${eventData.type}`);
             this.listeners.get(eventData.type).forEach((callback) => {
               callback(eventData.data);
             });
@@ -52,18 +55,16 @@ class EventService {
         } catch (error) {
           console.error("Erro ao processar evento:", error);
         }
-      };
+      });
 
       // Manipulador de erros
-      this.eventSource.onerror = (error) => {
+      this.eventSource.addEventListener("error", (error) => {
         console.error("Erro no SSE:", error);
         this.isConnected = false;
         this.eventSource.close();
         this.eventSource = null;
-
-        // Tentar reconectar
         this.scheduleReconnect();
-      };
+      });
     } catch (error) {
       console.error("Erro ao conectar ao SSE:", error);
       this.scheduleReconnect();
