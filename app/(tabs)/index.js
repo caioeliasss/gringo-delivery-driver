@@ -1,9 +1,9 @@
-// app/(tabs)/index.js
+// app/(tabs)/index.js with added map routing functionality
 import React, { useState, useEffect, useRef } from "react";
-import { StyleSheet, View, ScrollView, Dimensions } from "react-native";
+import { StyleSheet, View, TouchableOpacity, Text } from "react-native";
 import {
   Card,
-  Text,
+  Text as PaperText,
   Button,
   ActivityIndicator,
   Badge,
@@ -16,7 +16,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, Redirect } from "expo-router";
 import { getMotoboyMe, updateMotoboy } from "../services/api";
 import MapView, { Marker, Circle } from "react-native-maps";
+import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
+
+// Replace with your actual Google Maps API Key
+const GOOGLE_MAPS_APIKEY = process.env.MAPS_API;
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
@@ -28,32 +32,30 @@ export default function HomeScreen() {
   const [location, setLocation] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
   const mapRef = useRef(null);
+  const [activeDestination, setActiveDestination] = useState(null);
+  const [routeInfo, setRouteInfo] = useState(null);
 
-  // Demo data - substitua isso com os dados do seu banco
-  // Exemplo de pontos de interesse para mostrar no mapa
-  const [pontosDeInteresse, setPontosDeInteresse] = useState([
+  // Demo data - mock destinations to show on the map
+  const [mockDestinations, setMockDestinations] = useState([
     {
       id: 1,
-      nome: "Restaurante Exemplo",
-      coordinates: {
+      title: "Restaurant Pickup",
+      description: "Food pickup location",
+      coordinate: {
         latitude: -22.905,
         longitude: -47.06,
       },
     },
     {
       id: 2,
-      nome: "Cliente Exemplo",
-      coordinates: {
+      title: "Customer Delivery",
+      description: "Customer's address",
+      coordinate: {
         latitude: -22.91,
         longitude: -47.057,
       },
     },
   ]);
-
-  // Check if user is authenticated
-  if (!loading && !user) {
-    return <Redirect href="/login" />;
-  }
 
   // Determine colors based on color scheme
   const colors = {
@@ -91,25 +93,22 @@ export default function HomeScreen() {
         });
         setLocation(currentLocation);
 
-        // Atualizar pontos de interesse com base na localização atual (simulação)
-        // Aqui você poderia buscar pontos próximos do seu banco de dados
+        // Update mock destinations to be near the current location
         if (currentLocation) {
-          // Ajustar os pontos de interesse para ficarem próximos à localização atual
-          const pontosAtualizados = pontosDeInteresse.map((ponto, index) => ({
-            ...ponto,
-            coordinates: {
-              latitude: currentLocation.coords.latitude + index * 0.0015,
-              longitude: currentLocation.coords.longitude + index * 0.0015,
+          const updatedDestinations = mockDestinations.map((dest, index) => ({
+            ...dest,
+            coordinate: {
+              latitude: currentLocation.coords.latitude + (index + 1) * 0.003,
+              longitude: currentLocation.coords.longitude + (index + 1) * 0.002,
             },
           }));
-          setPontosDeInteresse(pontosAtualizados);
+          setMockDestinations(updatedDestinations);
         }
 
         // Update motoboy location in backend
         if (motoboyData && currentLocation) {
           try {
             await updateMotoboy({
-              //FIXME motoboy coords backend
               coordinates: [
                 currentLocation.coords.longitude,
                 currentLocation.coords.latitude,
@@ -137,8 +136,8 @@ export default function HomeScreen() {
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            distanceInterval: 5, // metros
-            timeInterval: 3000, // 3 segundos
+            distanceInterval: 5, // meters
+            timeInterval: 3000, // 3 seconds
           },
           (newLocation) => {
             setLocation(newLocation);
@@ -169,12 +168,12 @@ export default function HomeScreen() {
     // Cleanup function
     return () => {
       if (locationSubscription) {
-        locationSubscription.remove();
+        locationSubscription.then((sub) => sub.remove());
       }
     };
   }, [deliveryStatus]);
 
-  // Centralizar o mapa na posição atual
+  // Center the map on current location
   const centralizarMapa = () => {
     if (location && mapRef.current) {
       mapRef.current.animateToRegion(
@@ -185,7 +184,29 @@ export default function HomeScreen() {
           longitudeDelta: 0.005,
         },
         1000
-      ); // 1000ms de animação
+      );
+    }
+  };
+
+  // Show route to destination
+  const showRouteToDestination = (destination) => {
+    setActiveDestination(destination);
+
+    // Fit map to show both points
+    if (location && mapRef.current) {
+      mapRef.current.fitToCoordinates(
+        [
+          {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          },
+          destination.coordinate,
+        ],
+        {
+          edgePadding: { top: 100, right: 50, bottom: 250, left: 50 },
+          animated: true,
+        }
+      );
     }
   };
 
@@ -262,11 +283,38 @@ export default function HomeScreen() {
               strokeColor="rgba(66, 133, 244, 0.5)"
               strokeWidth={1}
             />
-            {/* <MapViewDirections
-              origin={origin}
-              destination={destination}
-              apikey={GOOGLE_MAPS_APIKEY}
-            /> */}
+
+            {/* Mock destination markers */}
+            {mockDestinations.map((dest) => (
+              <Marker
+                key={dest.id}
+                coordinate={dest.coordinate}
+                title={dest.title}
+                description={dest.description}
+                pinColor={dest.id === 1 ? "orange" : "red"}
+              />
+            ))}
+
+            {/* Directions between current location and selected destination */}
+            {location && activeDestination && (
+              <MapViewDirections
+                origin={{
+                  latitude: location.coords.latitude,
+                  longitude: location.coords.longitude,
+                }}
+                destination={activeDestination.coordinate}
+                apikey={GOOGLE_MAPS_APIKEY}
+                strokeWidth={4}
+                strokeColor={colors.primary}
+                optimizeWaypoints={true}
+                onReady={(result) => {
+                  setRouteInfo({
+                    distance: result.distance,
+                    duration: result.duration,
+                  });
+                }}
+              />
+            )}
           </MapView>
         ) : (
           <View
@@ -287,9 +335,9 @@ export default function HomeScreen() {
         <Card style={[styles.card, { backgroundColor: colors.card }]}>
           <Card.Content style={styles.statusCard}>
             <View>
-              <Text style={[styles.welcomeText, { color: colors.text }]}>
+              <PaperText style={[styles.welcomeText, { color: colors.text }]}>
                 Olá, {motoboy.name || "Entregador"}
-              </Text>
+              </PaperText>
               <View style={styles.statusContainer}>
                 <Badge
                   size={12}
@@ -298,9 +346,11 @@ export default function HomeScreen() {
                     { backgroundColor: getStatusColor() },
                   ]}
                 />
-                <Text style={[styles.statusText, { color: colors.subtext }]}>
+                <PaperText
+                  style={[styles.statusText, { color: colors.subtext }]}
+                >
                   {getStatusText()}
-                </Text>
+                </PaperText>
               </View>
             </View>
 
@@ -315,6 +365,47 @@ export default function HomeScreen() {
             </Button>
           </Card.Content>
         </Card>
+      </View>
+
+      {/* Destination Controls */}
+      <View style={styles.destinationControls}>
+        <PaperText style={styles.heading}>Selecione um destino:</PaperText>
+        {mockDestinations.map((dest) => (
+          <TouchableOpacity
+            key={dest.id}
+            style={[
+              styles.destinationButton,
+              activeDestination?.id === dest.id && styles.selectedDestination,
+            ]}
+            onPress={() => showRouteToDestination(dest)}
+          >
+            <PaperText
+              style={[
+                styles.buttonText,
+                activeDestination?.id === dest.id && { color: colors.white },
+              ]}
+            >
+              {dest.title}
+            </PaperText>
+          </TouchableOpacity>
+        ))}
+
+        {routeInfo && (
+          <View style={styles.routeInfoContainer}>
+            <View style={styles.routeInfoItem}>
+              <PaperText style={styles.routeInfoLabel}>Distância</PaperText>
+              <PaperText style={styles.routeInfoValue}>
+                {routeInfo.distance.toFixed(1)} km
+              </PaperText>
+            </View>
+            <View style={styles.routeInfoItem}>
+              <PaperText style={styles.routeInfoLabel}>Tempo</PaperText>
+              <PaperText style={styles.routeInfoValue}>
+                {Math.ceil(routeInfo.duration)} min
+              </PaperText>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Botão para centralizar mapa */}
@@ -392,6 +483,57 @@ const styles = StyleSheet.create({
     position: "absolute",
     margin: 16,
     right: 0,
-    bottom: 24,
+    bottom: 200,
+  },
+  destinationControls: {
+    position: "absolute",
+    bottom: 20,
+    left: 16,
+    right: 16,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  heading: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  destinationButton: {
+    backgroundColor: "#EFEFEF",
+    padding: 12,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  selectedDestination: {
+    backgroundColor: "#EB2E3E",
+  },
+  buttonText: {
+    fontWeight: "600",
+    color: "#333333",
+  },
+  routeInfoContainer: {
+    marginTop: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5E5",
+  },
+  routeInfoItem: {
+    alignItems: "center",
+  },
+  routeInfoLabel: {
+    fontSize: 12,
+    color: "#666666",
+  },
+  routeInfoValue: {
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });

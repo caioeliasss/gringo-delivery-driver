@@ -286,6 +286,8 @@ export default function ExploreScreen() {
       console.log(error);
     }
 
+    delivery.data.order.motoboy.motoboyId = motoboyId;
+
     const travelData = {
       price: delivery.data.order.motoboy.price,
       rain: isRain,
@@ -295,14 +297,22 @@ export default function ExploreScreen() {
       order: delivery.data.order,
     };
     try {
+      await updateNotification({ id: delivery._id, status: "ACCEPTED" });
+    } catch (error) {
+      console.log("Erro updateNotification: ", error);
+    }
+    try {
       await updateOrderStatus({
         id: delivery.data.order._id,
         status: "em_preparo",
       });
-      await updateNotification({ id: deliveries._id, status: "ACCEPTED" });
+    } catch (error) {
+      console.log("Erro updateOrderStatus: ", error);
+    }
+    try {
       await createTravel(travelData);
     } catch (error) {
-      console.log(error);
+      console.log("Erro createTravel: ", error);
     }
   };
 
