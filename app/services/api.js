@@ -10,7 +10,7 @@ const getBaseUrl = () => {
 
   // For mobile devices, we need to use the computer's network IP address
   // Replace 192.168.1.x with your actual local IP address
-  return process.env.REACT_APP_API_URL || "http://192.168.15.24:8080/api";
+  return process.env.REACT_APP_API_URL || "http://192.168.15.24:8080/api"; //FIXME adicionar env com api
 };
 
 const API_URL = getBaseUrl();
@@ -53,7 +53,7 @@ export const updateNotification = async (notificationData) => {
 };
 
 export const updateOrderStatus = async (notificationData) => {
-  console.log(api, API_URL);
+  console.log("UpdateOrderStatus ", api, API_URL);
   return api.put(`/orders/status`, notificationData);
 };
 

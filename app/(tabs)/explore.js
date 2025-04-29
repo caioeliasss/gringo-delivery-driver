@@ -5,8 +5,8 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
-  Image,
   RefreshControl,
+  Animated,
 } from "react-native";
 import {
   Card,
@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Searchbar,
   Divider,
+  ProgressBar,
 } from "react-native-paper";
 import { useColorScheme } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -23,15 +24,111 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   createTravel,
   getMotoboyMe,
-  getMotoboyOrders,
   getNotifications,
   updateNotification,
   updateOrderStatus,
 } from "../services/api";
-import { buscarCnpj } from "../services/cnpj";
 import { getWeather } from "../services/weather";
 import { useAuth } from "../context/AuthContext";
 import eventService from "../services/eventService";
+
+// Component for the countdown timer
+const CountdownTimer = ({ expiresAt, colors, onExpiredChange }) => {
+  const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 });
+  const [progress, setProgress] = useState(1); // Full progress bar initially
+  const [expired, setExpired] = useState(false);
+  const [totalDuration, setTotalDuration] = useState(0);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const calcTimeLeft = () => {
+      const now = new Date();
+      const expireDate = new Date(expiresAt);
+      const diff = expireDate - now;
+
+      // Calculate total duration on first render (in milliseconds)
+      if (totalDuration === 0) {
+        // Assuming expiresAt is set 5 minutes from creation, we get the full duration
+        // You might want to adjust this logic based on your actual backend implementation
+        const fullDuration = 1 * 60 * 1000; // 5 minutes in milliseconds
+        setTotalDuration(fullDuration);
+      }
+
+      if (diff <= 0) {
+        if (!expired) {
+          setExpired(true);
+          // Call the callback to notify parent component
+          if (onExpiredChange) {
+            onExpiredChange(true);
+          }
+        }
+        setTimeLeft({ minutes: 0, seconds: 0 });
+        setProgress(0);
+        return;
+      }
+
+      // Calculate minutes and seconds
+      const minutes = Math.floor(diff / 1000 / 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      // Calculate progress (remaining time / total time)
+      const remainingProgress = diff / totalDuration;
+      setProgress(Math.max(0, Math.min(remainingProgress, 1)));
+
+      setTimeLeft({ minutes, seconds });
+
+      if (expired) {
+        setExpired(false);
+        // Call the callback to notify parent component
+        if (onExpiredChange) {
+          onExpiredChange(false);
+        }
+      }
+    };
+
+    calcTimeLeft();
+    const timer = setInterval(calcTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [expiresAt, totalDuration, expired, onExpiredChange]);
+
+  if (!expiresAt) return null;
+
+  return (
+    <View style={styles.countdownContainer}>
+      <View style={styles.countdownHeader}>
+        <Text
+          style={[
+            styles.countdownText,
+            { color: expired ? colors.primary : colors.subtext },
+          ]}
+        >
+          {expired ? "Expirado" : "Expira em"}
+        </Text>
+        <Text
+          style={[
+            styles.timeText,
+            { color: expired ? colors.primary : colors.text },
+          ]}
+        >
+          {expired
+            ? "--:--"
+            : `${timeLeft.minutes
+                .toString()
+                .padStart(2, "0")}:${timeLeft.seconds
+                .toString()
+                .padStart(2, "0")}`}
+        </Text>
+      </View>
+      <ProgressBar
+        progress={progress}
+        color={progress < 0.25 ? colors.primary : colors.secondary}
+        style={styles.progressBar}
+      />
+    </View>
+  );
+};
 
 export default function ExploreScreen() {
   const colorScheme = useColorScheme();
@@ -41,6 +138,7 @@ export default function ExploreScreen() {
   const [motoboyId, setMotoboyId] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("all"); // 'all', 'food', 'pharmacy', 'grocery'
+  const [expiredDeliveries, setExpiredDeliveries] = useState({});
   const { user, logout } = useAuth();
 
   // Define app colors
@@ -72,7 +170,7 @@ export default function ExploreScreen() {
           motoboy_id = motoboy._id;
           setMotoboyId(motoboy_id);
         } catch (error) {
-          console.log(error.response.data);
+          console.log(error.response?.data || error);
         }
         try {
           response = await getNotifications(motoboy_id);
@@ -80,7 +178,7 @@ export default function ExploreScreen() {
           setDeliveries(notification);
           setLoading(false);
         } catch (error) {
-          console.log(error.response.data);
+          console.log(error.response?.data || error);
         }
       };
 
@@ -88,7 +186,6 @@ export default function ExploreScreen() {
       eventService.on("notificationUpdate", handleOrderUpdate);
       eventService.on("*", (data) => {
         console.log("Evento genérico recebido:", data);
-        // Tentar identificar o formato real dos eventos
       });
 
       return () => {
@@ -108,7 +205,7 @@ export default function ExploreScreen() {
         motoboy_id = motoboy._id;
         setMotoboyId(motoboy_id);
       } catch (error) {
-        console.log(error.response.data);
+        console.log(error.response?.data || error);
       }
       try {
         response = await getNotifications(motoboy_id);
@@ -116,7 +213,7 @@ export default function ExploreScreen() {
         setDeliveries(notification);
         setLoading(false);
       } catch (error) {
-        console.log(error.response.data);
+        console.log(error.response?.data || error);
       }
     };
     setTimeout(() => {
@@ -128,12 +225,12 @@ export default function ExploreScreen() {
   const onRefresh = () => {
     const fetchPedidos = async () => {
       try {
-        response = await getNotifications(motoboyId);
+        const response = await getNotifications(motoboyId);
         const notification = response.data;
         setDeliveries(notification);
         setLoading(false);
       } catch (error) {
-        console.log(error.response.data);
+        console.log(error.response?.data || error);
       }
     };
     fetchPedidos();
@@ -145,21 +242,30 @@ export default function ExploreScreen() {
   };
 
   // Filter deliveries based on search and filter
-  const filteredDeliveries = deliveries.filter((delivery) => {
-    const matchesSearch = searchQuery
-      ? delivery.restaurant.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        delivery.pickupAddress
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        delivery.deliveryAddress
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      : true;
+  const filteredDeliveries = deliveries
+    .filter((delivery) => {
+      const matchesSearch = searchQuery
+        ? delivery.restaurant
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          delivery.pickupAddress
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          delivery.deliveryAddress
+            ?.toLowerCase()
+            .includes(searchQuery.toLowerCase())
+        : true;
 
-    const matchesFilter = filter === "all" || delivery.type === filter;
+      const matchesFilter = filter === "all" || delivery.type === filter;
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      // Sort by createdAt, newest first
+      const dateA = new Date(a.createdAt || 0);
+      const dateB = new Date(b.createdAt || 0);
+      return dateB - dateA;
+    });
 
   // Accept delivery action
   const handleAcceptDelivery = async (delivery) => {
@@ -183,18 +289,17 @@ export default function ExploreScreen() {
     const travelData = {
       price: delivery.data.order.motoboy.price,
       rain: isRain,
-      distance: delivery.data.order.delivery.distance, //TODO Calcular distancia de todos os pedidos
+      distance: delivery.data.order.delivery.distance,
       coordinatesFrom: delivery.data.order.store.coordinates,
-      coordinatesTo: delivery.data.order.customer.customerAddress.coordinates, //FIXME
+      coordinatesTo: delivery.data.order.customer.customerAddress.coordinates,
       order: delivery.data.order,
     };
     try {
-      // console.log(travelData);
       await updateOrderStatus({
         id: delivery.data.order._id,
         status: "em_preparo",
       });
-      // await updateNotification({ id: delivery._id, status: "ACCEPTED" });
+      await updateNotification({ id: deliveries._id, status: "ACCEPTED" });
       await createTravel(travelData);
     } catch (error) {
       console.log(error);
@@ -331,91 +436,121 @@ export default function ExploreScreen() {
             </Text>
           </View>
         ) : (
-          filteredDeliveries.map((delivery) => (
-            <Card
-              key={delivery._id}
-              style={[styles.deliveryCard, { backgroundColor: colors.card }]}
-            >
-              <Card.Content>
-                <View style={styles.restaurantRow}>
-                  <Text style={[styles.restaurantName, { color: colors.text }]}>
-                    {delivery.title}
-                  </Text>
-                  <Chip
-                    style={[
-                      styles.priceChip,
-                      { backgroundColor: colors.secondary },
-                    ]}
-                  >
-                    <Text style={styles.priceText}>
-                      R$ {delivery.data.order.motoboy.price}
-                    </Text>
-                  </Chip>
-                </View>
+          filteredDeliveries.map((delivery) => {
+            const isExpired = expiredDeliveries[delivery._id] || false;
 
-                <View style={styles.addressSection}>
-                  <View style={styles.addressContainer}>
+            return (
+              <Card
+                key={delivery._id}
+                style={[
+                  styles.deliveryCard,
+                  {
+                    backgroundColor: colors.card,
+                    opacity: isExpired ? 0.7 : 1,
+                  },
+                ]}
+              >
+                <Card.Content>
+                  {/* Countdown Timer Component */}
+                  <CountdownTimer
+                    expiresAt={delivery.expiresAt}
+                    colors={colors}
+                    onExpiredChange={(expired) => {
+                      setExpiredDeliveries((prev) => ({
+                        ...prev,
+                        [delivery._id]: expired,
+                      }));
+                    }}
+                  />
+
+                  <View style={styles.restaurantRow}>
                     <Text
-                      style={[styles.addressLabel, { color: colors.subtext }]}
+                      style={[styles.restaurantName, { color: colors.text }]}
                     >
-                      Retirada:
+                      {delivery.title}
                     </Text>
-                    <Text style={[styles.addressText, { color: colors.text }]}>
-                      {`${delivery.data.order.store.address.address}, ${delivery.data.order.store.address.addressNumber}, ${delivery.data.order.store.address.bairro}`}
-                    </Text>
+                    <Chip
+                      style={[
+                        styles.priceChip,
+                        { backgroundColor: colors.secondary },
+                      ]}
+                    >
+                      <Text style={styles.priceText}>
+                        R$ {delivery.data.order.motoboy.price.toFixed(2)}
+                      </Text>
+                    </Chip>
                   </View>
 
-                  <View style={styles.addressContainer}>
-                    <Text
-                      style={[styles.addressLabel, { color: colors.subtext }]}
-                    >
-                      Entrega:
-                    </Text>
-                    <Text style={[styles.addressText, { color: colors.text }]}>
-                      {`${delivery.data.address.address}, ${delivery.data.address.addressNumber}, ${delivery.data.address.bairro}`}
-                    </Text>
+                  <View style={styles.addressSection}>
+                    <View style={styles.addressContainer}>
+                      <Text
+                        style={[styles.addressLabel, { color: colors.subtext }]}
+                      >
+                        Retirada:
+                      </Text>
+                      <Text
+                        style={[styles.addressText, { color: colors.text }]}
+                      >
+                        {`${delivery.data.order.store.address.address}, ${delivery.data.order.store.address.addressNumber}, ${delivery.data.order.store.address.bairro}`}
+                      </Text>
+                    </View>
+
+                    <View style={styles.addressContainer}>
+                      <Text
+                        style={[styles.addressLabel, { color: colors.subtext }]}
+                      >
+                        Entrega:
+                      </Text>
+                      <Text
+                        style={[styles.addressText, { color: colors.text }]}
+                      >
+                        {`${delivery.data.address.address}, ${delivery.data.address.addressNumber}, ${delivery.data.address.bairro}`}
+                      </Text>
+                    </View>
                   </View>
-                </View>
 
-                <Divider
-                  style={[styles.divider, { backgroundColor: colors.border }]}
-                />
+                  <Divider
+                    style={[styles.divider, { backgroundColor: colors.border }]}
+                  />
 
-                <View style={styles.deliveryDetails}>
-                  <View style={styles.detailItem}>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {delivery.data.order.delivery.distance.toFixed(1)} km
-                    </Text>
-                    <Text
-                      style={[styles.detailLabel, { color: colors.subtext }]}
-                    >
-                      Distância
-                    </Text>
+                  <View style={styles.deliveryDetails}>
+                    <View style={styles.detailItem}>
+                      <Text
+                        style={[styles.detailValue, { color: colors.text }]}
+                      >
+                        {delivery.data.order.delivery.distance.toFixed(1)} km
+                      </Text>
+                      <Text
+                        style={[styles.detailLabel, { color: colors.subtext }]}
+                      >
+                        Distância
+                      </Text>
+                    </View>
+
+                    {isExpired ? (
+                      <Button
+                        mode="contained"
+                        buttonColor={colors.chipBackground}
+                        style={styles.acceptButton}
+                        disabled={true}
+                      >
+                        Expirado
+                      </Button>
+                    ) : (
+                      <Button
+                        mode="contained"
+                        buttonColor={colors.primary}
+                        style={styles.acceptButton}
+                        onPress={() => handleAcceptDelivery(delivery)}
+                      >
+                        Aceitar
+                      </Button>
+                    )}
                   </View>
-
-                  {/* <View style={styles.detailItem}>
-                    <Text style={[styles.detailValue, { color: colors.text }]}>
-                      {delivery.time}
-                    </Text>
-                    <Text
-                      style={[styles.detailLabel, { color: colors.subtext }]}
-                    >
-                      Tempo estimado
-                    </Text>
-                  </View> */}
-
-                  <Button
-                    mode="contained"
-                    buttonColor={colors.primary}
-                    style={styles.acceptButton}
-                    onPress={() => handleAcceptDelivery(delivery)}
-                  >
-                    Aceitar
-                  </Button>
-                </View>
-              </Card.Content>
-            </Card>
-          ))
+                </Card.Content>
+              </Card>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>
@@ -471,10 +606,35 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 8,
   },
+  // Countdown styles
+  countdownContainer: {
+    marginBottom: 10,
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  countdownHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  countdownText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  timeText: {
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  progressBar: {
+    height: 4,
+    borderRadius: 2,
+  },
   restaurantRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: 8,
     marginBottom: 12,
   },
   restaurantName: {
