@@ -31,6 +31,7 @@ import {
 import { getWeather } from "../services/weather";
 import { useAuth } from "../context/AuthContext";
 import eventService from "../services/eventService";
+import { useRouter } from "expo-router";
 
 // Component for the countdown timer
 const CountdownTimer = ({ expiresAt, colors, onExpiredChange }) => {
@@ -140,6 +141,8 @@ export default function ExploreScreen() {
   const [filter, setFilter] = useState("all"); // 'all', 'food', 'pharmacy', 'grocery'
   const [expiredDeliveries, setExpiredDeliveries] = useState({});
   const { user, logout } = useAuth();
+  const [isTravel, setIsTravel] = useState();
+  const router = useRouter();
 
   // Define app colors
   const colors = {
@@ -204,6 +207,7 @@ export default function ExploreScreen() {
 
         motoboy_id = motoboy._id;
         setMotoboyId(motoboy_id);
+        setIsTravel(motoboy.race.active);
       } catch (error) {
         console.log(error.response?.data || error);
       }
@@ -311,6 +315,7 @@ export default function ExploreScreen() {
     }
     try {
       await createTravel(travelData);
+      router.replace("/(tabs)?refresh=true");
     } catch (error) {
       console.log("Erro createTravel: ", error);
     }
@@ -437,13 +442,43 @@ export default function ExploreScreen() {
         }
       >
         {filteredDeliveries.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.subtext }]}>
-              Nenhuma entrega disponível no momento.
-            </Text>
-            <Text style={[styles.emptySubtext, { color: colors.subtext }]}>
-              Puxe para baixo para atualizar
-            </Text>
+          <View>
+            {isTravel ? (
+              <Card
+                style={[
+                  styles.activeDeliveryCard,
+                  { backgroundColor: colors.primary },
+                ]}
+                onPress={() => router.replace("/(tabs)?refresh=true")}
+              >
+                <Card.Content style={styles.activeDeliveryContent}>
+                  <View style={styles.deliveryIconContainer}>
+                    <Text style={styles.deliveryIcon}>🚚</Text>
+                    <View style={styles.pulseCircle} />
+                  </View>
+                  <View style={styles.deliveryTextContainer}>
+                    <Text style={styles.activeDeliveryTitle}>
+                      Entrega em andamento
+                    </Text>
+                    <Text style={styles.activeDeliverySubtitle}>
+                      Toque para visualizar sua rota atual
+                    </Text>
+                  </View>
+                  <View style={styles.deliveryArrowContainer}>
+                    <Text style={styles.deliveryArrow}>→</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
+
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: colors.subtext }]}>
+                Nenhuma entrega disponível no momento.
+              </Text>
+              <Text style={[styles.emptySubtext, { color: colors.subtext }]}>
+                Puxe para baixo para atualizar
+              </Text>
+            </View>
           </View>
         ) : (
           filteredDeliveries.map((delivery) => {
@@ -692,5 +727,67 @@ const styles = StyleSheet.create({
   },
   acceptButton: {
     borderRadius: 20,
+  },
+  // Add these styles to your StyleSheet.create function
+  activeDeliveryCard: {
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  activeDeliveryContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 8,
+  },
+  deliveryIconContainer: {
+    position: "relative",
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  deliveryIcon: {
+    fontSize: 28,
+    zIndex: 2,
+  },
+  pulseCircle: {
+    position: "absolute",
+    width: 45,
+    height: 45,
+    borderRadius: 25,
+    backgroundColor: "rgba(255,255,255,0.3)",
+    opacity: 0.7,
+    zIndex: 1,
+    // You'd ideally use Animated to create a pulsing effect
+    // This is just a placeholder styling
+  },
+  deliveryTextContainer: {
+    flex: 1,
+  },
+  activeDeliveryTitle: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  activeDeliverySubtitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 14,
+  },
+  deliveryArrowContainer: {
+    width: 30,
+    height: 30,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  deliveryArrow: {
+    color: "white",
+    fontSize: 24,
+    fontWeight: "bold",
   },
 });

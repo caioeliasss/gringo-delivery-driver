@@ -10,7 +10,7 @@ const getBaseUrl = () => {
 
   // For mobile devices, we need to use the computer's network IP address
   // Replace 192.168.1.x with your actual local IP address
-  return process.env.REACT_APP_API_URL || "http://192.168.15.24:8080/api"; //FIXME adicionar env com api
+  return "http://192.168.15.24:8080/api"; //FIXME adicionar env com api
 };
 
 const API_URL = getBaseUrl();
@@ -83,6 +83,10 @@ export const findNearestMotoboy = async (coords) => {
 
 export const updateMotoboyLocation = async (locationData) => {
   return api.put("/motoboys/update-location", locationData);
+};
+
+export const getOrder = async (orderId) => {
+  return api.get(`/orders/${orderId}`);
 };
 
 // Função utilitária para converter endereço em coordenadas usando a API do Google Maps
