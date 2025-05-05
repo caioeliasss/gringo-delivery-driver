@@ -32,6 +32,9 @@ import { getWeather } from "../services/weather";
 import { useAuth } from "../context/AuthContext";
 import eventService from "../services/eventService";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+import SuccessAnimation from "../../components/SuccessAnimation";
 
 // Component for the countdown timer
 const CountdownTimer = ({ expiresAt, colors, onExpiredChange }) => {
@@ -143,6 +146,7 @@ export default function ExploreScreen() {
   const { user, logout } = useAuth();
   const [isTravel, setIsTravel] = useState();
   const router = useRouter();
+  const [showAcceptAnimation, setShowAcceptAnimation] = useState(false);
 
   // Define app colors
   const colors = {
@@ -198,32 +202,40 @@ export default function ExploreScreen() {
     }
   }, [user]);
 
-  useEffect(() => {
-    const fetchPedidos = async () => {
-      let motoboy_id;
-      try {
-        let response = await getMotoboyMe();
-        const motoboy = response.data;
+  useFocusEffect(
+    useCallback(() => {
+      const fetchPedidos = async () => {
+        let motoboy_id;
+        try {
+          let response = await getMotoboyMe();
+          const motoboy = response.data;
 
-        motoboy_id = motoboy._id;
-        setMotoboyId(motoboy_id);
-        setIsTravel(motoboy.race.active);
-      } catch (error) {
-        console.log(error.response?.data || error);
-      }
-      try {
-        response = await getNotifications(motoboy_id);
-        const notification = response.data;
-        setDeliveries(notification);
-        setLoading(false);
-      } catch (error) {
-        console.log(error.response?.data || error);
-      }
-    };
-    setTimeout(() => {
-      fetchPedidos();
-    }, 1000);
-  }, []);
+          motoboy_id = motoboy._id;
+          setMotoboyId(motoboy_id);
+          let travel;
+          if (!motoboy.race || motoboy.race.active === false) {
+            travel = false;
+          } else {
+            travel = true;
+          }
+          setIsTravel(travel);
+        } catch (error) {
+          console.log(error.response?.data || error);
+        }
+        try {
+          response = await getNotifications(motoboy_id);
+          const notification = response.data;
+          setDeliveries(notification);
+          setLoading(false);
+        } catch (error) {
+          console.log(error.response?.data || error);
+        }
+      };
+      setTimeout(() => {
+        fetchPedidos();
+      }, 100);
+    }, [])
+  );
 
   // Refresh data
   const onRefresh = () => {
@@ -315,7 +327,7 @@ export default function ExploreScreen() {
     }
     try {
       await createTravel(travelData);
-      router.replace("/(tabs)?refresh=true");
+      setShowAcceptAnimation(true);
     } catch (error) {
       console.log("Erro createTravel: ", error);
     }
@@ -339,7 +351,14 @@ export default function ExploreScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-
+      <SuccessAnimation
+        visible={!loading}
+        onAnimationComplete={console.log("teste")}
+        message="Entrega aceita!"
+        subMessage="Você será redirecionado para a navegação"
+        duration={2000}
+        iconBackgroundColor={colors.primary}
+      />
       <View style={styles.header}>
         <Searchbar
           placeholder="Buscar entregas..."
@@ -351,7 +370,6 @@ export default function ExploreScreen() {
           placeholderTextColor={colors.subtext}
         />
       </View>
-
       <View style={styles.filterContainer}>
         <ScrollView
           horizontal
@@ -429,7 +447,6 @@ export default function ExploreScreen() {
           </Chip>
         </ScrollView>
       </View>
-
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
