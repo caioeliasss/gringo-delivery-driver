@@ -31,6 +31,7 @@ import {
   Portal,
   Provider as PaperProvider,
 } from "react-native-paper";
+import socketService from "../services/socketService";
 
 // Replace with your actual Google Maps API Key
 const GOOGLE_MAPS_APIKEY = process.env.MAPS_API;
@@ -110,6 +111,87 @@ export default function HomeScreen() {
     success: colorScheme === "dark" ? "#10B981" : "#34D399",
     border: colorScheme === "dark" ? "#444444" : "#E5E5E5",
   };
+
+  const locationInterval = useRef(null);
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    const setupLocationTracking = async () => {
+      try {
+        // Verificar permissões
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          setErrorMsg("Permissão de localização negada");
+          return;
+        }
+
+        // Obter dados do motoboy
+        const response = await getMotoboyMe();
+        const motoboyData = response.data;
+
+        if (!isSubscribed) return;
+
+        setMotoboy(motoboyData);
+        setDeliveryStatus(motoboyData.isAvailable);
+
+        // Conectar ao socket
+        const token = await user.getIdToken();
+        socketService.connect(motoboyData._id, token);
+
+        // Configurar listener para atualizações de pedidos
+        socketService.onOrderUpdate((order) => {
+          console.log("Pedido atualizado:", order);
+          // Atualizar estado do pedido conforme necessário
+        });
+
+        // Obter localização inicial
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+        setLocation(location);
+
+        let interval = 5000; // Intervalo padrão de 5 segundos
+        if (motoboyData.race.active === false) {
+          interval = 30000;
+        }
+
+        // Iniciar atualização a cada 5 segundos
+        locationInterval.current = setInterval(async () => {
+          try {
+            const currentLocation = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+            });
+
+            // Atualizar estado local
+            setLocation(currentLocation);
+
+            // Enviar para o servidor via socket
+            socketService.sendLocation(currentLocation);
+          } catch (error) {
+            console.error("Erro ao obter localização:", error);
+          }
+        }, interval); // 5 segundos
+      } catch (error) {
+        console.error("Erro na configuração:", error);
+        setErrorMsg(error.message);
+      }
+    };
+
+    if (user) {
+      setupLocationTracking();
+    }
+
+    // Cleanup
+    return () => {
+      isSubscribed = false;
+      if (locationInterval.current) {
+        clearInterval(locationInterval.current);
+        locationInterval.current = null;
+      }
+      socketService.disconnect();
+    };
+  }, [user]);
 
   useFocusEffect(
     useCallback(() => {
