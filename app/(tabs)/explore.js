@@ -164,8 +164,9 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (user) {
       // Conectar com o SSE
+      setLoading(true);
       eventService.connect(user.uid);
-      console.log("Conectado com o user:", user.uid);
+      // console.log("Conectado com o user:", user.uid);
 
       // Registrar manipulador de eventos com logs
       const handleOrderUpdate = async (orderData) => {
@@ -186,6 +187,7 @@ export default function ExploreScreen() {
           setLoading(false);
         } catch (error) {
           console.log(error.response?.data || error);
+          setLoading(false);
         }
       };
 
@@ -204,6 +206,7 @@ export default function ExploreScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setLoading(true);
       const fetchPedidos = async () => {
         let motoboy_id;
         try {
@@ -229,6 +232,7 @@ export default function ExploreScreen() {
           setLoading(false);
         } catch (error) {
           console.log(error.response?.data || error);
+          setLoading(false);
         }
       };
       setTimeout(() => {
@@ -286,6 +290,7 @@ export default function ExploreScreen() {
   // Accept delivery action
   const handleAcceptDelivery = async (delivery) => {
     setDeliveries([]);
+    setLoading(true);
 
     let isRain;
     try {
@@ -327,10 +332,11 @@ export default function ExploreScreen() {
     }
     try {
       await createTravel(travelData);
-      setShowAcceptAnimation(true);
+      router.replace("/(tabs)");
     } catch (error) {
       console.log("Erro createTravel: ", error);
     }
+    setLoading(false);
   };
 
   if (loading) {
@@ -351,14 +357,6 @@ export default function ExploreScreen() {
       style={[styles.container, { backgroundColor: colors.background }]}
     >
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-      <SuccessAnimation
-        visible={!loading}
-        onAnimationComplete={console.log("teste")}
-        message="Entrega aceita!"
-        subMessage="Você será redirecionado para a navegação"
-        duration={2000}
-        iconBackgroundColor={colors.primary}
-      />
       <View style={styles.header}>
         <Searchbar
           placeholder="Buscar entregas..."

@@ -1,16 +1,8 @@
 import axios from "axios";
 import { auth } from "../firebase/config";
-import { Platform } from "react-native";
 
 const getBaseUrl = () => {
-  // For web, we can use relative URLs or localhost
-  if (Platform.OS === "web") {
-    return process.env.REACT_APP_API_URL || "http://localhost:8080/api";
-  }
-
-  // For mobile devices, we need to use the computer's network IP address
-  // Replace 192.168.1.x with your actual local IP address
-  return "http://192.168.15.24:8080/api"; //FIXME adicionar env com api
+  return process.env.REACT_APP_API_URL;
 };
 
 const API_URL = getBaseUrl();

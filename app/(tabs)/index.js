@@ -14,7 +14,12 @@ import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { getMotoboyMe, getOrder, updateMotoboy } from "../services/api";
+import {
+  getMotoboyMe,
+  getOrder,
+  updateMotoboy,
+  updateOrderStatus,
+} from "../services/api";
 import MapView, { Marker, Circle } from "react-native-maps";
 import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
@@ -43,13 +48,14 @@ export default function HomeScreen() {
   const [activeDestination, setActiveDestination] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
   const [isRacing, setIsRacing] = useState(false);
-  const [isNear, SetIsNear] = useState(true);
+  const [isNear, SetIsNear] = useState(false);
   const [getCode, setGetCode] = useState(false);
   const [code, setCode] = useState(0);
   const [mockDestinations, setMockDestinations] = useState([]);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
   const [codeVerifying, setCodeVerifying] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Add this function to handle code validation
   const handleCodeValidation = async () => {
@@ -76,11 +82,12 @@ export default function HomeScreen() {
 
         // Update motoboy status
         await updateMotoboy({
+          isAvailable: true,
           race: { active: false },
         });
 
         // Refresh the screen or redirect
-        router.replace("/(tabs)?refresh=true");
+        setRefreshKey((prev) => prev + 1);
       } else {
         setCodeError("Código inválido. Tente novamente.");
       }
@@ -107,6 +114,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       // This function will run whenever the screen comes into focus
+      setAppLoading(true);
       const fetchOrder = async () => {
         let motoboyA;
         try {
@@ -124,8 +132,9 @@ export default function HomeScreen() {
         }
 
         if (!motoboyA.race || motoboyA.race.active === false) {
-          console.log("Nenhuma corrida ativa");
+          // console.log("Nenhuma corrida ativa");
           setIsRacing(false);
+          setAppLoading(false);
           setMockDestinations([]);
         } else {
           try {
@@ -153,7 +162,9 @@ export default function HomeScreen() {
                 },
               },
             ]);
+            setAppLoading(false);
           } catch (error) {
+            setAppLoading(false);
             console.error("Erro ao buscar informações do pedido:", error);
           }
         }
@@ -167,7 +178,7 @@ export default function HomeScreen() {
       return () => {
         // cleanup code if necessary
       };
-    }, []) // Empty dependency array means this effect runs only when the screen is focused
+    }, [refreshKey]) // Empty dependency array means this effect runs only when the screen is focused
   );
 
   useEffect(() => {
@@ -267,6 +278,19 @@ export default function HomeScreen() {
               );
 
               isNearDestination = distToDestination < 300; // within 300 meter
+
+              if (mockDestinations.length > 0) {
+                const distance = calculateDistance(
+                  mockDestinations[1].coordinate.latitude,
+                  mockDestinations[1].coordinate.longitude,
+                  newLocation.coords.latitude,
+                  newLocation.coords.longitude
+                );
+                if (distance < 300) {
+                  // console.log(`isnear: ${distance}`);
+                  SetIsNear(true);
+                }
+              }
               // console.log(isNearDestination, distToDestination);
               // SetIsNear(isNearDestination); //FIXME só perto do destino
 
@@ -587,7 +611,7 @@ export default function HomeScreen() {
                     },
                   ]}
                   onPress={() => {
-                    setGetCode(!code);
+                    setGetCode(!getCode);
                   }}
                 >
                   <Text style={{ fontSize: 20 }}>✅</Text>
@@ -654,10 +678,13 @@ export default function HomeScreen() {
 
             <TextInput
               label="Código de Entrega"
-              value={codeInput}
               onChangeText={setCodeInput}
               mode="outlined"
               keyboardType="numeric"
+              outlineColor={colors.primary}
+              cursorColor={colors.primary}
+              textColor={colors.secondary}
+              activeOutlineColor={colors.primary}
               style={{ marginTop: 15, marginBottom: 10 }}
               error={!!codeError}
             />
@@ -671,6 +698,7 @@ export default function HomeScreen() {
             <View style={styles.modalButtonContainer}>
               <Button
                 mode="outlined"
+                textColor={colors.primary}
                 onPress={() => setGetCode(false)}
                 style={{ marginRight: 10 }}
               >
@@ -679,6 +707,7 @@ export default function HomeScreen() {
 
               <Button
                 mode="contained"
+                textColor={colors.secondary}
                 onPress={handleCodeValidation}
                 loading={codeVerifying}
                 disabled={codeVerifying}
