@@ -15,8 +15,7 @@ class SocketService {
     }
 
     // NÃO incluir /socket na URL, apenas na configuração path
-    const socketUrl =
-      process.env.REACT_APP_SOCKET_URL || "http://localhost:8080";
+    const socketUrl = process.env.EXPO_PUBLIC_REACT_APP_SOCKET_URL;
     console.log("Conectando ao socket:", socketUrl);
     console.log("Motoboy ID:", motoboyId);
 

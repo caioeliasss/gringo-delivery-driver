@@ -2,7 +2,7 @@ import axios from "axios";
 import { auth } from "../firebase/config";
 
 const getBaseUrl = () => {
-  return process.env.REACT_APP_API_URL;
+  return process.env.EXPO_PUBLIC_REACT_APP_API_URL;
 };
 
 const API_URL = getBaseUrl();
@@ -86,7 +86,7 @@ export const geocodeAddress = async (address) => {
   try {
     // Nota: Em produção, você usaria seu próprio serviço proxy para proteger sua API key
     // Aqui estamos usando uma abordagem simplificada para fins de demonstração
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+    const apiKey = process.env.REACT_APP_GOOGLE_EXPO_PUBLIC_MAPS_API_KEY;
     const encodedAddress = encodeURIComponent(address);
     const response = await axios.get(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}`

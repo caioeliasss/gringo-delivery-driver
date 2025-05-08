@@ -34,7 +34,6 @@ import eventService from "../services/eventService";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
-import SuccessAnimation from "../../components/SuccessAnimation";
 
 // Component for the countdown timer
 const CountdownTimer = ({ expiresAt, colors, onExpiredChange }) => {

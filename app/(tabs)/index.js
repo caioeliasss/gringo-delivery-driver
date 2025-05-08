@@ -34,7 +34,7 @@ import {
 import socketService from "../services/socketService";
 
 // Replace with your actual Google Maps API Key
-const GOOGLE_MAPS_APIKEY = process.env.MAPS_API;
+const GOOGLE_EXPO_PUBLIC_MAPS_APIKEY = process.env.EXPO_PUBLIC_MAPS_API;
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
@@ -323,100 +323,6 @@ export default function HomeScreen() {
     };
 
     loadData();
-
-    // Location tracking subscription
-    let locationSubscription;
-
-    async function setupStateBastedLocationTracking() {
-      try {
-        // Different settings based on delivery state
-        const IDLE_UPDATE_INTERVAL = 5 * 60 * 1000; // 5 minutes when idle
-        const ACTIVE_UPDATE_INTERVAL = 30 * 1000; // 30 seconds when on delivery
-        const ARRIVING_UPDATE_INTERVAL = 30 * 1000; // 30 seconds when near destination
-
-        let updateInterval = isRacing
-          ? ACTIVE_UPDATE_INTERVAL
-          : IDLE_UPDATE_INTERVAL;
-        let lastUpdate = Date.now();
-
-        locationSubscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 10000, // 10 seconds internal updates
-            distanceInterval: 10, // 10 meters
-          },
-          (newLocation) => {
-            // Always update UI
-            setLocation(newLocation);
-
-            // Check if driver is near destination
-            let isNearDestination = false;
-            if (isRacing && activeDestination && newLocation) {
-              const distToDestination = calculateDistance(
-                newLocation.coords.latitude,
-                newLocation.coords.longitude,
-                activeDestination.coordinate.latitude,
-                activeDestination.coordinate.longitude
-              );
-
-              isNearDestination = distToDestination < 300; // within 300 meter
-
-              if (mockDestinations.length > 0) {
-                const distance = calculateDistance(
-                  mockDestinations[1].coordinate.latitude,
-                  mockDestinations[1].coordinate.longitude,
-                  newLocation.coords.latitude,
-                  newLocation.coords.longitude
-                );
-                if (distance < 300) {
-                  // console.log(`isnear: ${distance}`);
-                  SetIsNear(true);
-                }
-              }
-              // console.log(isNearDestination, distToDestination);
-              // SetIsNear(isNearDestination); //FIXME só perto do destino
-
-              // Update interval based on proximity
-              updateInterval = isNearDestination
-                ? ARRIVING_UPDATE_INTERVAL
-                : ACTIVE_UPDATE_INTERVAL;
-            } else {
-              updateInterval = isRacing
-                ? ACTIVE_UPDATE_INTERVAL
-                : IDLE_UPDATE_INTERVAL;
-            }
-
-            // Check if we should update server
-            if (Date.now() - lastUpdate >= updateInterval) {
-              updateMotoboy({
-                coordinates: [
-                  newLocation.coords.longitude,
-                  newLocation.coords.latitude,
-                ],
-              }).catch((err) =>
-                console.error("Erro ao atualizar localização:", err)
-              );
-
-              lastUpdate = Date.now();
-            }
-          }
-        );
-      } catch (error) {
-        console.error("Erro ao iniciar rastreamento de localização:", error);
-      }
-    }
-
-    // Start tracking if we have permissions
-    if (!errorMsg) {
-      setupStateBastedLocationTracking();
-    }
-
-    // Cleanup function
-    // return () => {
-    //   if (locationSubscription) {
-    //     locationSubscription.then((sub) => sub.remove());
-    //   }
-    // };
   }, []);
 
   // Center the map on current location
@@ -555,7 +461,7 @@ export default function HomeScreen() {
                     longitude: location.coords.longitude,
                   }}
                   destination={activeDestination.coordinate}
-                  apikey={GOOGLE_MAPS_APIKEY}
+                  apikey={GOOGLE_EXPO_PUBLIC_MAPS_APIKEY}
                   strokeWidth={4}
                   strokeColor={colors.primary}
                   optimizeWaypoints={true}

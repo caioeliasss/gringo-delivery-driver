@@ -19,7 +19,7 @@ class EventService {
     }
 
     this.storeId = storeId;
-    const baseUrl = process.env.REACT_APP_API_URL;
+    const baseUrl = process.env.EXPO_PUBLIC_REACT_APP_API_URL;
     const eventsUrl =
       baseUrl.replace("/api", "") + `/api/events?storeId=${storeId}`;
 
