@@ -64,4 +64,5 @@ serviceAccountKey.json
 backend/serviceAccountKey.json
 expo-env.d.ts
 # @end expo-cli
-env.js
+env.jsandroid/.cxx/
+android/app/.cxx/
