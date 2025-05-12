@@ -285,21 +285,6 @@ export default function HomeScreen() {
           accuracy: Location.Accuracy.High,
         });
         setLocation(currentLocation);
-
-        // Update motoboy location in backend
-        if (motoboyData && currentLocation) {
-          try {
-            await updateMotoboy({
-              coordinates: [
-                currentLocation.coords.longitude,
-                currentLocation.coords.latitude,
-              ],
-            });
-          } catch (locationError) {
-            console.error("Falha ao atualizar localização:", locationError);
-          }
-        }
-
         setAppLoading(false);
       } catch (error) {
         console.error("Erro ao buscar dados:", error);

@@ -11,6 +11,9 @@
     "package": "com.gringodelivery.gringodelivery",
     "versionCode": 1,
     "ios": {
+      "config": {
+        "googleMapsApiKey": "AIzaSyBh-mZCvYaGg_LrtNbb1Ho8e5AZWIauDn4"
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.gringodelivery.gringodelivery",
       "infoPlist": {
@@ -21,6 +24,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/gringo-logo-colorida.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBh-mZCvYaGg_LrtNbb1Ho8e5AZWIauDn4"
+        }
       },
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",

@@ -117,7 +117,7 @@ export default function RegisterScreen() {
 
       router.replace("/(tabs)");
     } catch (error) {
-      let errorMessage = "Erro ao registrar. Tente novamente.";
+      let errorMessage = `Erro ao registrar ${error.message}`;
 
       if (error.code === "auth/email-already-in-use") {
         errorMessage = "Este email já está em uso.";
