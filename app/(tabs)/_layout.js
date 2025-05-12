@@ -8,7 +8,8 @@ import { HapticTab } from "@/components/HapticTab";
 import { useColorScheme } from "react-native";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  // const colorScheme = useColorScheme();
+  const colorScheme = "light";
 
   // Gringo brand colors
   const colors = {
@@ -61,16 +62,6 @@ export default function TabLayout() {
           headerTitle: "Início",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: "Entregas",
-          headerTitle: "Entregas Disponíveis",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="paperplane.fill" color={color} />
           ),
         }}
       />

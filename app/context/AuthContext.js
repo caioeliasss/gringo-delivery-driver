@@ -7,30 +7,46 @@ import {
   signOut,
   updateProfile,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth, db } from "../firebase/config";
+import { auth } from "../firebase/config";
+import { getMotoboyMe } from "../services/api";
+import socketService from "../services/socketService";
+import eventService from "../services/eventService";
 
 const AuthContext = createContext({});
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [motoboyData, setMotoboyData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Ouvinte de mudanças na autenticação
+  // Auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+
+      // If user is logged in, get their motoboy data
+      if (currentUser) {
+        try {
+          const response = await getMotoboyMe();
+          setMotoboyData(response.data);
+        } catch (error) {
+          console.error("Error fetching motoboy data:", error);
+        }
+      } else {
+        setMotoboyData(null);
+      }
+
       setLoading(false);
     });
 
-    // Limpar ouvinte no desmonte
+    // Cleanup listener on unmount
     return () => unsubscribe();
   }, []);
 
-  // Registro com campos adicionais (email, senha, celular, CPF)
+  // Registration with email and password
   const register = async (email, password) => {
     try {
-      // Criar usuário no Firebase Auth
+      // Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(
         auth,
         email,
@@ -42,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login com email e senha
+  // Login with email and password
   const login = async (email, password) => {
     try {
       const userCredential = await signInWithEmailAndPassword(
@@ -59,7 +75,24 @@ export const AuthProvider = ({ children }) => {
   // Logout
   const logout = async () => {
     try {
+      // Disconnect from socket and event services
+      socketService.disconnect();
+      eventService.disconnect();
+
       await signOut(auth);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  // Update profile function
+  const updateUserProfile = async (displayName) => {
+    try {
+      if (user) {
+        await updateProfile(user, { displayName });
+        // Force refresh the user
+        setUser({ ...user, displayName });
+      }
     } catch (error) {
       throw error;
     }
@@ -67,16 +100,18 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    motoboyData,
     loading,
     register,
     login,
     logout,
+    updateUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Hook personalizado para usar o contexto de autenticação
+// Custom hook to use the auth context
 export const useAuth = () => {
   return useContext(AuthContext);
 };
