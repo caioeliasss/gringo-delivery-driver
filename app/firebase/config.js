@@ -7,6 +7,7 @@ import {
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 // Initialize Firebase com as configurações do arquivo env.js
 const app = initializeApp({

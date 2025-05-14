@@ -1,158 +1,353 @@
-// components/SuccessAnimation.js
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  withDelay,
-  Easing,
-  runOnJS,
-} from "react-native-reanimated";
+/** @format */
 
-const { width, height } = Dimensions.get("window");
+import React, { useRef, useEffect } from "react";
+import { View, Animated, Text } from "react-native";
+// Importando diretamente o componente como React Element em vez de criar um componente animado
+import { Feather } from "@expo/vector-icons";
 
-/**
- * A simple animation component to display a success message
- * @param {Object} props - Component props
- * @param {boolean} props.visible - Whether the animation should be displayed
- * @param {Function} props.onAnimationComplete - Function called when animation ends
- * @param {string} props.message - Main message to display
- * @param {string} props.subMessage - Secondary message to display
- * @param {string} props.icon - Emoji or text to use as an icon
- * @param {string} props.backgroundColor - Animation background color
- * @param {string} props.iconBackgroundColor - Icon background color
- * @param {number} props.duration - Total animation duration in ms
- */
-const SuccessAnimation = ({
-  visible = false,
-  onAnimationComplete,
-  message = "Sucesso!",
-  subMessage = "Operação concluída",
-  icon = "✓",
-  backgroundColor = "rgba(0, 0, 0, 0.8)",
-  iconBackgroundColor = "#EB2E3E",
+export default function SuccessAnimation({
+  size = 120,
+  iconSize = 120 * 0.7,
+  dotColor = "#44c6b1",
+  iconColor = "white",
+  dotSize = 20,
   duration = 2000,
-}) => {
-  // Animation values
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.3);
-  const textOpacity = useSharedValue(0);
-
+  backgroundColor = "#44c6b1",
+  animatedLayerColor = "white",
+  onAnimationEnd = () => {},
+}) {
+  const animation = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (visible) {
-      // Reset values
-      opacity.value = 0;
-      scale.value = 0.3;
-      textOpacity.value = 0;
+    Animated.timing(animation, {
+      toValue: 2,
+      duration,
+      useNativeDriver: false,
+    }).start((e) => onAnimationEnd());
+  }, []);
 
-      // Start animation
-      opacity.value = withTiming(1, { duration: 300 });
+  const particalScale = animation.interpolate({
+    inputRange: [0, 1.5],
+    outputRange: [dotSize, 0],
+    extrapolate: "clamp",
+  });
+  const particalRadius = animation.interpolate({
+    inputRange: [0, 1.5],
+    outputRange: [dotSize / 2, 0],
+    extrapolate: "clamp",
+  });
+  const particalOpacity = animation.interpolate({
+    inputRange: [0, 0.5, 0.65],
+    outputRange: [0, 0.1, 1],
+    extrapolateRight: "clamp",
+  });
 
-      // Animate circle with icon
-      scale.value = withSequence(
-        withTiming(1.2, { duration: 400, easing: Easing.out(Easing.back()) }),
-        withTiming(1, { duration: 200 })
-      );
-
-      // Animate text
-      textOpacity.value = withDelay(300, withTiming(1, { duration: 300 }));
-
-      // Hide animation after specified duration
-      opacity.value = withDelay(
-        duration,
-        withTiming(0, { duration: 500 }, (finished) => {
-          if (finished && onAnimationComplete) {
-            runOnJS(onAnimationComplete)();
-          }
-        })
-      );
-    }
-  }, [visible, opacity, scale, textOpacity, duration, onAnimationComplete]);
-
-  // Animated styles
-  const containerStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
-  const circleStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const textStyle = useAnimatedStyle(() => ({
-    opacity: textOpacity.value,
-  }));
-
-  if (!visible) return null;
+  const SIZE = size;
+  const iconOpacity = animation.interpolate({
+    inputRange: [0, 0.5, 0.75, 1.5],
+    outputRange: [0, 0, 0.5, 1],
+  });
 
   return (
-    <Animated.View
-      style={[styles.container, { backgroundColor }, containerStyle]}
-    >
-      <View style={styles.content}>
-        <Animated.View style={[styles.circleContainer, circleStyle]}>
-          <View
-            style={[styles.circle, { backgroundColor: iconBackgroundColor }]}
-          >
-            <Text style={styles.icon}>{icon}</Text>
-          </View>
-        </Animated.View>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Animated.View
+          style={{
+            transform: [
+              {
+                scaleX: animation.interpolate({
+                  inputRange: [0, 0.4],
+                  outputRange: [0, 1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+              {
+                scaleY: animation.interpolate({
+                  inputRange: [0, 0.4],
+                  outputRange: [0, 1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+            ],
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor,
+          }}
+        />
 
-        <Animated.View style={[styles.textContainer, textStyle]}>
-          <Text style={styles.message}>{message}</Text>
-          <Text style={styles.subMessage}>{subMessage}</Text>
+        <Animated.View
+          style={{
+            opacity: animation.interpolate({
+              inputRange: [0, 1, 1.5],
+              outputRange: [1, 0.5, 0],
+              extrapolateRight: "clamp",
+            }),
+            transform: [
+              {
+                scaleX: animation.interpolate({
+                  inputRange: [0, 0.4, 1.1],
+                  outputRange: [0, 0.7, 1.1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+              {
+                scaleY: animation.interpolate({
+                  inputRange: [0, 0.4, 1.1],
+                  outputRange: [0, 0.7, 1.1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+            ],
+            position: "absolute",
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor: animatedLayerColor,
+          }}
+        />
+
+        <Animated.View
+          style={{
+            transform: [
+              {
+                scaleX: animation.interpolate({
+                  inputRange: [0, 0.4, 1],
+                  outputRange: [0, 0.25, 1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+              {
+                scaleY: animation.interpolate({
+                  inputRange: [0, 0.4, 1],
+                  outputRange: [0, 0.25, 1],
+                  extrapolateRight: "clamp",
+                }),
+              },
+            ],
+            position: "absolute",
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            backgroundColor,
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {/* Substituímos o Icon animado por uma View animada contendo o Icon */}
+          <Animated.View
+            style={{
+              opacity: iconOpacity,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="check" size={iconSize} color={iconColor} />
+          </Animated.View>
         </Animated.View>
       </View>
-    </Animated.View>
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: -SIZE * 0.25,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [-0, -SIZE * 0.417, -SIZE * 0.92],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: SIZE * 0.25,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [SIZE * 0.0417, SIZE * 0.417, SIZE * 0.92],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          transform: [
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [0, -SIZE * 0.417, -SIZE * 0.92],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginBottom: SIZE * 0.25,
+          transform: [
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [SIZE * 0.0417, SIZE * 0.417, SIZE * 0.92],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: SIZE * 0.25,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 0.85],
+                outputRange: [SIZE * 0.0417, SIZE * 0.417, SIZE * 0.71],
+                extrapolateRight: "clamp",
+              }),
+            },
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [0, SIZE * 0.417, SIZE * 0.71],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: SIZE * 0.25,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [SIZE * 0.0417, SIZE * 0.417, SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [0, -SIZE * 0.417, -SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: -SIZE * 0.08,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [-SIZE * 0.0417, -SIZE * 0.417, -SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [0, -SIZE * 0.417, -SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+
+      <Animated.View
+        style={{
+          width: particalScale,
+          height: particalScale,
+          borderRadius: particalRadius,
+          opacity: particalOpacity,
+          position: "absolute",
+          backgroundColor: dotColor,
+          marginLeft: -SIZE * 0.08,
+          transform: [
+            {
+              translateX: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [-SIZE * 0.0417, -SIZE * 0.417, -SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+            {
+              translateY: animation.interpolate({
+                inputRange: [0, 0.5, 1],
+                outputRange: [0, SIZE * 0.417, SIZE * 0.67],
+                extrapolateRight: "clamp",
+              }),
+            },
+          ],
+        }}
+      />
+    </View>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  content: {
-    alignItems: "center",
-  },
-  circleContainer: {
-    marginBottom: 20,
-  },
-  circle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  icon: {
-    color: "white",
-    fontSize: 40,
-    fontWeight: "bold",
-  },
-  textContainer: {
-    alignItems: "center",
-  },
-  message: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 8,
-  },
-  subMessage: {
-    color: "rgba(255, 255, 255, 0.8)",
-    fontSize: 16,
-    textAlign: "center",
-  },
-});
-
-export default SuccessAnimation;
+}

@@ -49,7 +49,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import socketService from "../services/socketService";
 import eventService from "../services/eventService";
-import CircularTimer from "../../components/CircularTimer";
+import CircularProgress from "react-native-circular-progress-indicator";
+import SuccessAnimation from "../../components/SuccessAnimation";
 
 // Replace with your actual Google Maps API Key
 const GOOGLE_MAPS_APIKEY = process.env.EXPO_PUBLIC_MAPS_API;
@@ -199,7 +200,7 @@ export default function HomeScreen() {
   const [expiredDeliveries, setExpiredDeliveries] = useState({});
   const [showDeliveryOffers, setShowDeliveryOffers] = useState(false);
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'offers'
-
+  const [animationVisible, setAnimationVisible] = useState(false);
   // Determine colors based on color scheme
   const colors = {
     primary: "#EB2E3E",
@@ -231,7 +232,7 @@ export default function HomeScreen() {
     if (!deliveries) return;
 
     try {
-      await updateNotification({ id: deliveries._id, status: "DECLINED" });
+      //await updateNotification({ id: deliveries._id, status: "DECLINED" });
       setDeliveries(null);
     } catch (error) {
       console.log("Error declining delivery:", error);
@@ -272,6 +273,7 @@ export default function HomeScreen() {
         // Reset view to map and active delivery status
         setViewMode("map");
         setIsRacing(false);
+        setAnimationVisible(true);
       } else {
         setCodeError("Código inválido. Tente novamente.");
       }
@@ -385,30 +387,40 @@ export default function HomeScreen() {
 
       const fetchData = async () => {
         try {
-          // Get motoboy data
+          // 1. Tenta buscar dados do motoboy
+          console.log("ETAPA 1: Buscando dados do motoboy");
           const response = await getMotoboyMe();
           const motoboyData = response.data;
           setMotoboy(motoboyData);
           setMotoboyId(motoboyData._id);
 
-          // Determine if in active delivery
+          // 2. Verifica se há entrega ativa
+          console.log("ETAPA 2: Verificando entrega ativa");
           if (!motoboyData.race || motoboyData.race.active === false) {
             setIsRacing(false);
             setMockDestinations([]);
 
-            // When not in active delivery, fetch available delivery offers
+            // 3. Busca notificações
+            console.log("ETAPA 3: Buscando notificações");
             const notificationsResponse = await getNotifications(
               motoboyData._id
             );
-            setDeliveries(notificationsResponse[0]);
+            const notifications = notificationsResponse.data;
+
+            if (!notifications || notifications.length === 0) {
+              setDeliveries(null);
+            } else {
+              setDeliveries(notifications[0]);
+            }
           } else {
-            // In active delivery, fetch order details
+            // 4. Busca detalhes do pedido ativo
+            console.log("ETAPA 4: Buscando dados do pedido ativo");
             setIsRacing(true);
             const orderResponse = await getOrder(motoboyData.race.orderId);
             const order = orderResponse.data;
             setCode(order.cliente_cod);
 
-            // Set up destinations for the map
+            // Configura destinos no mapa
             setMockDestinations([
               {
                 id: 1,
@@ -430,11 +442,15 @@ export default function HomeScreen() {
               },
             ]);
 
-            // When in active delivery, default to map view
             setViewMode("map");
           }
         } catch (error) {
-          console.error("Error fetching data:", error);
+          // Mostra a mensagem de erro e a URL que falhou (se disponível)
+          console.error(`ERRO: ${error.message}`);
+          if (error.response) {
+            console.error(`Status: ${error.response.status}`);
+            console.error(`URL: ${error.config?.url || "URL não disponível"}`);
+          }
         } finally {
           setAppLoading(false);
         }
@@ -445,18 +461,23 @@ export default function HomeScreen() {
   );
 
   // Accept delivery action
-  const handleAcceptDelivery = async (delivery) => {
+  const handleAcceptDelivery = async () => {
+    const delivery = deliveries;
     setDeliveries({});
     setAppLoading(true);
 
     let isRain = false;
     try {
+      console.log(delivery, deliveries);
       // Check weather conditions
       const [latitude, longitude] = delivery.data.order.store.coordinates;
       const response = await getWeather(latitude, longitude);
       isRain = response.current.rain >= 2.4;
+      setAppLoading(false);
+      setAnimationVisible(true);
     } catch (error) {
       console.log("Weather error:", error);
+      setAppLoading(false);
     }
 
     delivery.data.order.motoboy.motoboyId = motoboyId;
@@ -484,11 +505,14 @@ export default function HomeScreen() {
       await createTravel(travelData);
 
       // Refresh data and switch to map view
-      setRefreshKey((prev) => prev + 1);
-      setViewMode("map");
       setIsRacing(true);
+      setAppLoading(false);
     } catch (error) {
-      console.error("Error accepting delivery:", error);
+      console.error(`ERRO: ${error.message}`);
+      if (error.response) {
+        console.error(`Status: ${error.response.status}`);
+        console.error(`URL: ${error.config?.url || "URL não disponível"}`);
+      }
     } finally {
       setAppLoading(false);
     }
@@ -600,6 +624,20 @@ export default function HomeScreen() {
     }
   };
 
+  function calculateRemainingTime(expiresAt) {
+    if (!expiresAt) return 0;
+
+    // Converter para objeto Date se for string
+    const expiryDate =
+      typeof expiresAt === "string" ? new Date(expiresAt) : expiresAt;
+    const now = new Date();
+
+    // Calcular diferença em milissegundos
+    const diffMs = Math.max(0, expiryDate - now);
+
+    return diffMs; // Retorna o tempo restante em milissegundos
+  }
+
   if (loading || appLoading) {
     return (
       <View
@@ -679,7 +717,7 @@ export default function HomeScreen() {
                     });
 
                     // Set isNear flag if we're close to destination (within 100 meters)
-                    setIsNear(result.distance < 0.1);
+                    setIsNear(result.distance < 0.3);
                   }}
                 />
               )}
@@ -919,7 +957,36 @@ export default function HomeScreen() {
                 </TouchableOpacity>
 
                 {/* Timer */}
-                <CircularTimer expiresAt={deliveries.expiresAt} />
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "white",
+                  }}
+                >
+                  <CircularProgress
+                    value={0} // Iniciar de 0
+                    initialValue={
+                      calculateRemainingTime(deliveries.expiresAt) / 1000
+                    } // Tempo restante em segundos
+                    radius={22}
+                    maxValue={60} // Valor máximo é o tempo restante em segundos
+                    duration={calculateRemainingTime(deliveries.expiresAt)} // Duração é o tempo restante em milissegundos
+                    // progressValueColor={"transparent"} // Esconde o número no meio
+                    // titleColor={"transparent"}
+                    activeStrokeWidth={3}
+                    inActiveStrokeWidth={3}
+                    progressValueColor="#999"
+                    strokeColorConfig={[
+                      { color: "red", value: 0 },
+                      { color: "skyblue", value: 50 },
+                      { color: "yellowgreen", value: 100 },
+                    ]}
+                    clockwise={false} // Contagem regressiva no sentido anti-horário
+                    onAnimationComplete={handleDeclineDelivery} // Callback quando terminar
+                  />
+                </View>
 
                 {/* Accept button */}
                 <TouchableOpacity
@@ -956,7 +1023,9 @@ export default function HomeScreen() {
                     {routeInfo && (
                       <View style={styles.routeInfoContainer}>
                         <PaperText style={styles.routeInfoText}>
-                          {routeInfo.distance.toFixed(1)} km •{" "}
+                          {routeInfo.distance.toFixed(1)} km
+                        </PaperText>
+                        <PaperText style={styles.routeInfoText}>
                           {Math.ceil(routeInfo.duration)} min
                         </PaperText>
                       </View>
@@ -982,11 +1051,22 @@ export default function HomeScreen() {
                           </Text>
                         </View>
                         <View style={styles.destinationTextContainer}>
-                          <PaperText style={styles.destinationLabel}>
+                          <PaperText
+                            style={[
+                              styles.destinationLabel,
+                              { color: "rgba(100, 100, 100, 0.6)" },
+                            ]}
+                          >
                             {index === 0 ? "Retirada" : "Entrega"}
                           </PaperText>
                           <PaperText
-                            style={styles.destinationTitle}
+                            style={[
+                              styles.destinationTitle,
+                              {
+                                fontWeight: "400",
+                                color: "rgba(50, 50, 50, 0.7)",
+                              },
+                            ]}
                             numberOfLines={1}
                           >
                             {dest.title}
@@ -1000,6 +1080,7 @@ export default function HomeScreen() {
                     <Button
                       mode="contained"
                       buttonColor={colors.success}
+                      textColor={colors.white}
                       style={styles.finalizeButton}
                       onPress={() => setGetCode(true)}
                     >
@@ -1011,6 +1092,216 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        <Portal>
+          <Modal
+            visible={getCode}
+            onDismiss={() => setGetCode(false)}
+            contentContainerStyle={{
+              backgroundColor: "white",
+              padding: 24,
+              margin: 16,
+              borderRadius: 16,
+              elevation: 5,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 3.84,
+            }}
+          >
+            {/* Ícone no topo */}
+            <View style={{ alignItems: "center", marginBottom: 20 }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: "rgba(40, 167, 69, 0.1)",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <Text style={{ fontSize: 32 }}>✓</Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "700",
+                  marginBottom: 8,
+                  color: "#333",
+                }}
+              >
+                Confirmar Entrega
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#666",
+                  textAlign: "center",
+                  maxWidth: "80%",
+                }}
+              >
+                Peça ao cliente o código de 4 dígitos para finalizar a entrega
+              </Text>
+            </View>
+
+            {/* Campo único de entrada de código */}
+            <View
+              style={{
+                marginHorizontal: 32,
+                marginVertical: 24,
+                position: "relative",
+              }}
+            >
+              <TextInput
+                style={{
+                  height: 60,
+                  fontSize: 28,
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  color: "#333",
+                  backgroundColor: "#f5f5f5",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: codeError ? "#EB2E3E" : "#e0e0e0",
+                  letterSpacing: 8, // Espaçamento entre os números para aparência melhor
+                }}
+                keyboardType="number-pad"
+                maxLength={4}
+                // value={codeInput}
+                onChangeText={setCodeInput}
+                onFocus={() => setCodeError("")}
+                placeholder="0000"
+                placeholderTextColor="#bbb"
+              />
+
+              {/* Opcional: adicionar um ícone de código */}
+              <View
+                style={{
+                  position: "absolute",
+                  left: 16,
+                  top: 9,
+                }}
+              >
+                <IconButton icon="lock-outline" size={18} iconColor="#888" />
+              </View>
+            </View>
+
+            {/* Mensagem de erro */}
+            <View style={{ minHeight: 24, marginBottom: 16 }}>
+              {codeError ? (
+                <Text
+                  style={{
+                    color: "#EB2E3E",
+                    fontSize: 14,
+                    textAlign: "center",
+                    fontWeight: "500",
+                  }}
+                >
+                  {codeError}
+                </Text>
+              ) : null}
+            </View>
+
+            {/* Botões de ação */}
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                marginTop: 8,
+              }}
+            >
+              <Button
+                mode="outlined"
+                onPress={() => setGetCode(false)}
+                style={{
+                  flex: 1,
+                  marginRight: 8,
+                  borderRadius: 10,
+                  borderColor: "#ddd",
+                }}
+                labelStyle={{
+                  fontSize: 15,
+                  fontWeight: "600",
+                  color: "#555",
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleCodeValidation}
+                loading={codeVerifying}
+                disabled={codeInput.length !== 4 || codeVerifying}
+                style={{
+                  flex: 1.5,
+                  marginLeft: 8,
+                  borderRadius: 10,
+                  elevation: 2,
+                }}
+                buttonColor={colors.success}
+                labelStyle={{
+                  fontSize: 15,
+                  fontWeight: "700",
+                  color: "white",
+                }}
+              >
+                Confirmar
+              </Button>
+            </View>
+
+            {/* Mensagem adicional */}
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 12,
+                color: "#999",
+                marginTop: 20,
+              }}
+            >
+              Verifique se o pacote foi entregue corretamente
+            </Text>
+          </Modal>
+        </Portal>
+
+        {animationVisible && (
+          <Portal>
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                justifyContent: "center",
+                alignItems: "center",
+                zIndex: 9999,
+              }}
+            >
+              <View style={{ flex: 0.5, width: "100%" }}>
+                <SuccessAnimation
+                  size={120}
+                  iconSize={120 * 0.7}
+                  dotColor={"#44c6b1"}
+                  iconColor={"white"}
+                  dotSize={20}
+                  duration={2000}
+                  backgroundColor={"#44c6b1"}
+                  animatedLayerColor={"white"}
+                  onAnimationEnd={() => {
+                    setAnimationVisible(false);
+                    // Se você quiser mostrar uma mensagem após a animação
+                    // setTimeout(() => {
+                    //   alert(successAnimationMessage);
+                    // }, 200);
+                  }}
+                />
+              </View>
+            </View>
+          </Portal>
+        )}
       </SafeAreaView>
     </PaperProvider>
   );
@@ -1211,7 +1502,7 @@ const styles = StyleSheet.create({
   fab: {
     backgroundColor: colors.primary,
     position: "absolute",
-    bottom: 100,
+    bottom: 26,
     right: 16,
   },
 
@@ -1251,7 +1542,7 @@ const styles = StyleSheet.create({
 
   // Entrega ativa
   activeDeliveryContainer: {
-    position: "relative",
+    position: "absolute",
     bottom: 16,
     left: 16,
     right: 16,
@@ -1260,6 +1551,7 @@ const styles = StyleSheet.create({
   activeDeliveryCard: {
     borderRadius: 12,
     elevation: 4,
+    backgroundColor: colors.white,
   },
   deliveryHeaderContainer: {
     marginBottom: 12,
@@ -1267,6 +1559,7 @@ const styles = StyleSheet.create({
   deliveryHeaderText: {
     fontSize: 16,
     fontWeight: "bold",
+    color: colors.primary,
   },
   routeInfoContainer: {
     marginTop: 4,
@@ -1302,11 +1595,12 @@ const styles = StyleSheet.create({
   },
   destinationLabel: {
     fontSize: 12,
-    color: colors.subtext,
+    color: "rgba(100, 100, 100, 0.6)", // Cor mais clara com opacidade
   },
   destinationTitle: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "400", // Reduzindo o peso da fonte
+    color: "rgba(50, 50, 50, 0.8)", // Adicionando cor mais clara com opacidade
   },
   finalizeButton: {
     marginTop: 8,
