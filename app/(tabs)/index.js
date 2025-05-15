@@ -40,6 +40,7 @@ import {
   updateNotification,
   createTravel,
   getMotoboyOrders,
+  updateTravel,
 } from "../services/api";
 import { getWeather } from "../services/weather";
 import MapView, { Marker, Circle } from "react-native-maps";
@@ -51,6 +52,15 @@ import socketService from "../services/socketService";
 import eventService from "../services/eventService";
 import CircularProgress from "react-native-circular-progress-indicator";
 import SuccessAnimation from "../../components/SuccessAnimation";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  Easing,
+  withSequence,
+  interpolate, // Adicione esta importação
+} from "react-native-reanimated";
 
 // Replace with your actual Google Maps API Key
 const GOOGLE_MAPS_APIKEY = process.env.EXPO_PUBLIC_MAPS_API;
@@ -201,6 +211,146 @@ export default function HomeScreen() {
   const [showDeliveryOffers, setShowDeliveryOffers] = useState(false);
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'offers'
   const [animationVisible, setAnimationVisible] = useState(false);
+  const statusScale = useSharedValue(1);
+  const notificationOpacity = useSharedValue(0);
+  const deliveryCardTranslateY = useSharedValue(200);
+  const deliveryCardOpacity = useSharedValue(0);
+  const [isNearStore, setIsNearStore] = useState(false);
+  const [travelId, setTravelId] = useState(null);
+
+  useEffect(() => {
+    // Função assíncrona dentro do useEffect
+    const updateTravelData = async () => {
+      if (isNear && travelId) {
+        try {
+          await updateTravel({
+            id: travelId,
+            arrival_customer: new Date(),
+          });
+        } catch (error) {
+          console.error("Erro ao atualizar chegada no cliente:", error);
+        }
+      }
+    };
+
+    // Chamar a função assíncrona
+    updateTravelData();
+  }, [isNear, travelId]); // Adicionei travelId como dependência
+
+  useEffect(() => {
+    const updateTravelStoreData = async () => {
+      if (isNearStore && travelId) {
+        try {
+          await updateTravel({
+            id: travelId,
+            arrival_store: new Date(),
+          });
+        } catch (error) {
+          console.error("Erro ao atualizar chegada na loja:", error);
+        }
+      }
+    };
+
+    updateTravelStoreData();
+  }, [isNearStore, travelId]); // Adicionei travelId como dependência
+
+  // Adicione este useEffect para controlar a animação quando deliveries mudar
+  useEffect(() => {
+    if (deliveries && deliveryStatus) {
+      // Resetar os valores antes de animar
+      deliveryCardTranslateY.value = 200;
+      deliveryCardOpacity.value = 0;
+
+      // Animar entrada do cartão
+      deliveryCardOpacity.value = withTiming(1, { duration: 300 });
+      deliveryCardTranslateY.value = withTiming(0, {
+        duration: 500,
+        easing: Easing.out(Easing.back(1.5)),
+      });
+    } else {
+      // Animar saída do cartão quando não houver entregas
+      deliveryCardOpacity.value = withTiming(0, { duration: 200 });
+      deliveryCardTranslateY.value = withTiming(200, { duration: 300 });
+    }
+  }, [deliveries, deliveryStatus]);
+
+  // Crie o estilo animado para o cartão
+  const animatedDeliveryCardStyle = useAnimatedStyle(() => {
+    return {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      width: "100%",
+      backgroundColor: "white",
+      zIndex: 999,
+      opacity: deliveryCardOpacity.value,
+      transform: [{ translateY: deliveryCardTranslateY.value }],
+    };
+  });
+
+  // Agora vamos criar animações para os botões
+  const declineScale = useSharedValue(1);
+  const acceptScale = useSharedValue(1);
+
+  // Função para animar botão de recusar
+  const handleDeclinePressIn = () => {
+    declineScale.value = withTiming(0.9, { duration: 100 });
+  };
+
+  const handleDeclinePressOut = () => {
+    declineScale.value = withSpring(1, { damping: 12 });
+  };
+
+  // Função para animar botão de aceitar
+  const handleAcceptPressIn = () => {
+    acceptScale.value = withTiming(0.9, { duration: 100 });
+  };
+
+  const handleAcceptPressOut = () => {
+    acceptScale.value = withSpring(1, { damping: 12 });
+  };
+
+  // Estilos animados para os botões
+  const animatedDeclineStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: declineScale.value }],
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "white",
+    };
+  });
+
+  const animatedAcceptStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: acceptScale.value }],
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "white",
+    };
+  });
+
+  // Adicione este useEffect para controlar a animação da notificação
+  useEffect(() => {
+    if (!isRacing && deliveryStatus && !deliveries) {
+      notificationOpacity.value = 0;
+      notificationOpacity.value = withTiming(1, { duration: 500 });
+    } else {
+      notificationOpacity.value = withTiming(0, { duration: 300 });
+    }
+  }, [isRacing, deliveryStatus, deliveries]);
+
+  const animatedNotificationStyle = useAnimatedStyle(() => {
+    return {
+      opacity: notificationOpacity.value,
+      transform: [
+        { translateY: interpolate(notificationOpacity.value, [0, 1], [20, 0]) },
+      ],
+    };
+  });
+
   // Determine colors based on color scheme
   const colors = {
     primary: "#EB2E3E",
@@ -388,20 +538,17 @@ export default function HomeScreen() {
       const fetchData = async () => {
         try {
           // 1. Tenta buscar dados do motoboy
-          console.log("ETAPA 1: Buscando dados do motoboy");
           const response = await getMotoboyMe();
           const motoboyData = response.data;
           setMotoboy(motoboyData);
           setMotoboyId(motoboyData._id);
 
           // 2. Verifica se há entrega ativa
-          console.log("ETAPA 2: Verificando entrega ativa");
           if (!motoboyData.race || motoboyData.race.active === false) {
             setIsRacing(false);
             setMockDestinations([]);
 
             // 3. Busca notificações
-            console.log("ETAPA 3: Buscando notificações");
             const notificationsResponse = await getNotifications(
               motoboyData._id
             );
@@ -414,7 +561,6 @@ export default function HomeScreen() {
             }
           } else {
             // 4. Busca detalhes do pedido ativo
-            console.log("ETAPA 4: Buscando dados do pedido ativo");
             setIsRacing(true);
             const orderResponse = await getOrder(motoboyData.race.orderId);
             const order = orderResponse.data;
@@ -457,18 +603,23 @@ export default function HomeScreen() {
       };
 
       fetchData();
-    }, [refreshKey])
+    }, [])
   );
 
   // Accept delivery action
   const handleAcceptDelivery = async () => {
-    const delivery = deliveries;
-    setDeliveries({});
+    if (!deliveries || !deliveries.data || !deliveries.data.order) {
+      console.error("Dados da entrega inválidos ou ausentes", deliveries);
+      return;
+    }
+
+    // Faça uma cópia dos dados para evitar problemas com referência
+    const delivery = JSON.parse(JSON.stringify(deliveries));
+
     setAppLoading(true);
 
     let isRain = false;
     try {
-      console.log(delivery, deliveries);
       // Check weather conditions
       const [latitude, longitude] = delivery.data.order.store.coordinates;
       const response = await getWeather(latitude, longitude);
@@ -476,7 +627,7 @@ export default function HomeScreen() {
       setAppLoading(false);
       setAnimationVisible(true);
     } catch (error) {
-      console.log("Weather error:", error);
+      console.log("Weather erro:", error);
       setAppLoading(false);
     }
 
@@ -494,7 +645,6 @@ export default function HomeScreen() {
     try {
       // Update notification status
       await updateNotification({ id: delivery._id, status: "ACCEPTED" });
-
       // Update order status
       await updateOrderStatus({
         id: delivery.data.order._id,
@@ -502,9 +652,37 @@ export default function HomeScreen() {
       });
 
       // Create new travel record
-      await createTravel(travelData);
+      const travel = await createTravel(travelData);
+      setTravelId(travel.data._id);
 
-      // Refresh data and switch to map view
+      await updateMotoboy({
+        race: {
+          travelId: travel.data._id,
+        },
+      });
+      setMockDestinations([
+        {
+          id: 1,
+          title: delivery.data.order.store.name,
+          description: "Estabelecimento de retirada",
+          coordinate: {
+            latitude: delivery.data.order.store.coordinates[1],
+            longitude: delivery.data.order.store.coordinates[0],
+          },
+        },
+        {
+          id: 2,
+          title: delivery.data.order.customer.name,
+          description: "Endereço do cliente",
+          coordinate: {
+            latitude:
+              delivery.data.order.customer.customerAddress.coordinates[1],
+            longitude:
+              delivery.data.order.customer.customerAddress.coordinates[0],
+          },
+        },
+      ]);
+      setCode(delivery.data.order.cliente_cod);
       setIsRacing(true);
       setAppLoading(false);
     } catch (error) {
@@ -571,8 +749,16 @@ export default function HomeScreen() {
   };
 
   // Toggle driver availability
+
+  // Modify the toggleAvailability function
   const toggleAvailability = async () => {
     try {
+      // Animate the button when pressed
+      statusScale.value = withSequence(
+        withTiming(0.9, { duration: 100 }),
+        withSpring(1, { damping: 12 })
+      );
+
       const newStatus = !deliveryStatus;
       setDeliveryStatus(newStatus);
 
@@ -594,6 +780,15 @@ export default function HomeScreen() {
       console.error("Erro ao alternar disponibilidade:", error);
     }
   };
+
+  const animatedStatusStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: statusScale.value }],
+      backgroundColor: deliveryStatus ? colors.success : colors.primary,
+      width: "50%",
+      borderRadius: 8,
+    };
+  });
 
   // Helper functions for UI
   const getStatusColor = () => {
@@ -710,14 +905,22 @@ export default function HomeScreen() {
                   strokeWidth={4}
                   strokeColor={colors.primary}
                   optimizeWaypoints={true}
-                  onReady={(result) => {
+                  onReady={async (result) => {
                     setRouteInfo({
                       distance: result.distance,
                       duration: result.duration,
                     });
 
                     // Set isNear flag if we're close to destination (within 100 meters)
-                    setIsNear(result.distance < 0.3);
+                    if (activeDestination.id === 1) {
+                      // Store destination
+                      // Set isNearStore to true if we're close to the store (within 300 meters)
+                      setIsNearStore(result.distance < 0.3);
+                    } else if (activeDestination.id === 2) {
+                      // Customer destination
+                      // Set isNear to true if we're close to the customer (within 300 meters)
+                      setIsNear(result.distance < 0.3);
+                    }
                   }}
                 />
               )}
@@ -736,31 +939,32 @@ export default function HomeScreen() {
           )}
           {!isRacing && (
             <View style={styles.availabilityContainer}>
-              <Card
-                style={{
-                  width: "50%",
-                  backgroundColor: deliveryStatus
-                    ? colors.success
-                    : colors.primary,
-                }}
-              >
-                <Card.Content>
-                  <View>
-                    <TouchableOpacity onPress={toggleAvailability}>
-                      <PaperText
-                        style={{
-                          color: colors.white,
-                          textAlign: "center",
-                          fontSize: 16,
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {deliveryStatus ? "Disponível" : "Indisponível"}
-                      </PaperText>
-                    </TouchableOpacity>
-                  </View>
-                </Card.Content>
-              </Card>
+              <Animated.View style={animatedStatusStyle}>
+                <TouchableOpacity
+                  onPress={toggleAvailability}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 20,
+                    borderRadius: 8,
+                    elevation: 0,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }}
+                >
+                  <PaperText
+                    style={{
+                      color: colors.white,
+                      textAlign: "center",
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {deliveryStatus ? "Disponível" : "Indisponível"}
+                  </PaperText>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
           )}
           {/* Cards informativos no topo do mapa */}
@@ -807,34 +1011,19 @@ export default function HomeScreen() {
 
           {/* Área de notificação de corrida na parte inferior */}
           {!isRacing && deliveryStatus && !deliveries && (
-            <View style={styles.lookingNotificationContainer}>
+            <Animated.View
+              style={[
+                styles.lookingNotificationContainer,
+                animatedNotificationStyle,
+              ]}
+            >
               <PaperText style={styles.lookingNotificationText}>
                 Estamos procurando novas entregas para você
               </PaperText>
-            </View>
+            </Animated.View>
           )}
-          {deliveries && deliveryStatus && (
-            <View
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                width: "100%",
-                // maxWidth: 360,
-                backgroundColor: "white",
-                // borderRadius: 12,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.08,
-                shadowRadius: 8,
-                elevation: 4,
-                overflow: "hidden",
-                marginHorizontal: "auto",
-                zIndex: 999,
-                // marginVertical: 10,
-              }}
-            >
+          {!isRacing && deliveries && deliveryStatus && (
+            <Animated.View style={animatedDeliveryCardStyle}>
               {/* Header with title */}
               <View
                 style={{
@@ -936,25 +1125,29 @@ export default function HomeScreen() {
                 }}
               >
                 {/* Decline button */}
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "white",
-                  }}
-                  onPress={handleDeclineDelivery}
-                >
-                  <Text
+                <Animated.View style={animatedDeclineStyle}>
+                  <TouchableOpacity
                     style={{
-                      fontSize: 28,
-                      color: "#999",
-                      fontWeight: "300",
+                      width: "100%",
+                      height: "100%",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
+                    onPress={handleDeclineDelivery}
+                    onPressIn={handleDeclinePressIn}
+                    onPressOut={handleDeclinePressOut}
                   >
-                    ×
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontSize: 28,
+                        color: "#999",
+                        fontWeight: "300",
+                      }}
+                    >
+                      ×
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
 
                 {/* Timer */}
                 <View
@@ -973,43 +1166,41 @@ export default function HomeScreen() {
                     radius={22}
                     maxValue={60} // Valor máximo é o tempo restante em segundos
                     duration={calculateRemainingTime(deliveries.expiresAt)} // Duração é o tempo restante em milissegundos
-                    // progressValueColor={"transparent"} // Esconde o número no meio
-                    // titleColor={"transparent"}
                     activeStrokeWidth={3}
                     inActiveStrokeWidth={3}
                     progressValueColor="#999"
-                    strokeColorConfig={[
-                      { color: "red", value: 0 },
-                      { color: "skyblue", value: 50 },
-                      { color: "yellowgreen", value: 100 },
-                    ]}
+                    inActiveStrokeColor="#E0E0E0"
                     clockwise={false} // Contagem regressiva no sentido anti-horário
                     onAnimationComplete={handleDeclineDelivery} // Callback quando terminar
                   />
                 </View>
 
                 {/* Accept button */}
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    backgroundColor: "white",
-                  }}
-                  onPress={handleAcceptDelivery}
-                >
-                  <Text
+                <Animated.View style={animatedAcceptStyle}>
+                  <TouchableOpacity
                     style={{
-                      fontSize: 24,
-                      color: "#4CAF50",
-                      fontWeight: "600",
+                      width: "100%",
+                      height: "100%",
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
+                    onPress={handleAcceptDelivery}
+                    onPressIn={handleAcceptPressIn}
+                    onPressOut={handleAcceptPressOut}
                   >
-                    ✓
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        fontSize: 24,
+                        color: "#4CAF50",
+                        fontWeight: "600",
+                      }}
+                    >
+                      ✓
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
               </View>
-            </View>
+            </Animated.View>
           )}
           {/* Controles de destino - mostrados durante uma entrega ativa */}
           {isRacing && mockDestinations.length > 0 && (
@@ -1054,7 +1245,12 @@ export default function HomeScreen() {
                           <PaperText
                             style={[
                               styles.destinationLabel,
-                              { color: "rgba(100, 100, 100, 0.6)" },
+                              {
+                                color:
+                                  activeDestination?.id === dest.id
+                                    ? "#eeeeee"
+                                    : "#333333",
+                              },
                             ]}
                           >
                             {index === 0 ? "Retirada" : "Entrega"}
@@ -1063,8 +1259,11 @@ export default function HomeScreen() {
                             style={[
                               styles.destinationTitle,
                               {
-                                fontWeight: "400",
-                                color: "rgba(50, 50, 50, 0.7)",
+                                fontWeight: "800",
+                                color:
+                                  activeDestination?.id === dest.id
+                                    ? "#FFFFFF"
+                                    : "#333333",
                               },
                             ]}
                             numberOfLines={1}
@@ -1502,7 +1701,7 @@ const styles = StyleSheet.create({
   fab: {
     backgroundColor: colors.primary,
     position: "absolute",
-    bottom: 26,
+    bottom: 36,
     right: 16,
   },
 
