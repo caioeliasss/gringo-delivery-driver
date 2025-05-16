@@ -40,6 +40,10 @@ export const getNotifications = async (motoboyId) => {
   return api.get("/notifications", { params: { motoboyId } });
 };
 
+export const getNotificationsAll = async (motoboyId) => {
+  return api.get("/notifications/all", { params: { motoboyId } });
+};
+
 export const updateTravel = async (travelData) => {
   return api.put(`/travels/${travelData.id}`, travelData);
 };

@@ -217,6 +217,7 @@ export default function HomeScreen() {
   const deliveryCardOpacity = useSharedValue(0);
   const [isNearStore, setIsNearStore] = useState(false);
   const [travelId, setTravelId] = useState(null);
+  const [isApproved, setIsApproved] = useState(false); // Assuming true for now
 
   useEffect(() => {
     // Função assíncrona dentro do useEffect
@@ -282,6 +283,8 @@ export default function HomeScreen() {
       left: 0,
       right: 0,
       width: "100%",
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       backgroundColor: "white",
       zIndex: 999,
       opacity: deliveryCardOpacity.value,
@@ -542,6 +545,7 @@ export default function HomeScreen() {
           const motoboyData = response.data;
           setMotoboy(motoboyData);
           setMotoboyId(motoboyData._id);
+          setIsApproved(motoboyData.isApproved);
 
           // 2. Verifica se há entrega ativa
           if (!motoboyData.race || motoboyData.race.active === false) {
@@ -785,7 +789,7 @@ export default function HomeScreen() {
     return {
       transform: [{ scale: statusScale.value }],
       backgroundColor: deliveryStatus ? colors.success : colors.primary,
-      width: "50%",
+      width: "40%",
       borderRadius: 8,
     };
   });
@@ -937,15 +941,45 @@ export default function HomeScreen() {
               </Text>
             </View>
           )}
-          {!isRacing && (
-            <View style={styles.availabilityContainer}>
-              <Animated.View style={animatedStatusStyle}>
+          <View
+            style={{
+              height: 110,
+              backgroundColor: colors.white,
+              flexDirection: "row",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              justifyContent: "space-between",
+              borderBottomWidth: 1,
+              borderBottomColor: "#f0f0f0",
+              paddingTop: 22, // Espaço para a statusbar
+            }}
+          >
+            {/* Botão de Menu */}
+            <TouchableOpacity
+              onPress={() => {
+                /* Adicione a função para abrir o menu */
+              }}
+              style={{
+                padding: 8,
+              }}
+            >
+              <IconButton icon="menu" size={24} iconColor={colors.primary} />
+            </TouchableOpacity>
+
+            {/* Botão de Disponibilidade no Centro */}
+            {!isRacing && (
+              <Animated.View
+                style={[
+                  animatedStatusStyle,
+                  { position: "relative", top: 4, left: 0 },
+                ]}
+              >
                 <TouchableOpacity
                   onPress={toggleAvailability}
                   style={{
-                    paddingVertical: 12,
-                    paddingHorizontal: 20,
-                    borderRadius: 8,
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                    borderRadius: 20, // Mais arredondado
                     elevation: 0,
                     shadowColor: "#000",
                     shadowOffset: { width: 0, height: 2 },
@@ -953,22 +987,65 @@ export default function HomeScreen() {
                     shadowRadius: 4,
                   }}
                 >
-                  <PaperText
+                  <View
                     style={{
-                      color: colors.white,
-                      textAlign: "center",
-                      fontSize: 16,
-                      fontWeight: "bold",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    {deliveryStatus ? "Disponível" : "Indisponível"}
-                  </PaperText>
+                    {/* Ponto indicador */}
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: colors.white,
+                        marginRight: 8,
+                      }}
+                    />
+                    <PaperText
+                      style={{
+                        color: colors.white,
+                        textAlign: "center",
+                        fontSize: 16, // Um pouco menor
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {deliveryStatus ? "Disponível" : "Indisponível"}
+                    </PaperText>
+                  </View>
                 </TouchableOpacity>
               </Animated.View>
-            </View>
-          )}
+            )}
+
+            {/* Botão de Notificações */}
+            {/* Botão de Notificações */}
+            <TouchableOpacity
+              onPress={() => router.push("/notifications")}
+              style={{
+                padding: 8,
+                position: "relative",
+              }}
+            >
+              <IconButton icon="bell" size={24} iconColor={colors.primary} />
+              {/* Badge de notificação - mostre apenas se houver notificações */}
+              <View
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  right: 16,
+                  backgroundColor: colors.primary,
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  // display: notifications.some((n) => !n.read) ? "flex" : "none", // Mostra apenas se houver notificações não lidas
+                }}
+              />
+            </TouchableOpacity>
+          </View>
           {/* Cards informativos no topo do mapa */}
-          {/* <View style={styles.infoCardsContainer}>
+          <View style={styles.infoCardsContainer}>
             <Card style={styles.infoCard}>
               <Card.Content style={styles.infoCardContent}>
                 <View>
@@ -978,7 +1055,11 @@ export default function HomeScreen() {
                   <PaperText style={styles.infoCardValue}>R$ 0,00</PaperText>
                 </View>
                 <View>
-                  <IconButton icon="chevron-right" size={24} color="#999" />
+                  <IconButton
+                    icon="chevron-right"
+                    size={24}
+                    iconColor={colors.primary}
+                  />
                 </View>
               </Card.Content>
             </Card>
@@ -987,17 +1068,20 @@ export default function HomeScreen() {
               <Card.Content style={styles.infoCardContent}>
                 <View>
                   <PaperText style={styles.infoCardLabel}>
-                    Pedidos hoje
+                    Entregas realizadas
                   </PaperText>
                   <PaperText style={styles.infoCardValue}>0</PaperText>
                 </View>
                 <View>
-                  <IconButton icon="chevron-right" size={24} color="#999" />
+                  <IconButton
+                    icon="chevron-right"
+                    size={24}
+                    iconColor={colors.primary}
+                  />
                 </View>
               </Card.Content>
             </Card>
-          </View> */}
-
+          </View>
           {/* Botão para centralizar mapa */}
           <View style={styles.fab}>
             <FAB
@@ -1008,7 +1092,6 @@ export default function HomeScreen() {
               onPress={centralizarMapa}
             />
           </View>
-
           {/* Área de notificação de corrida na parte inferior */}
           {!isRacing && deliveryStatus && !deliveries && (
             <Animated.View
@@ -1528,7 +1611,7 @@ const styles = StyleSheet.create({
     bottom: 0, // distância da parte inferior
     left: 0,
     right: 0,
-    top: 20,
+    top: 50,
     paddingHorizontal: 16,
   },
   logoContainer: {
@@ -1668,7 +1751,7 @@ const styles = StyleSheet.create({
   // Cards informativos
   infoCardsContainer: {
     position: "absolute",
-    top: 16,
+    top: 100,
     left: 16,
     right: 16,
     flexDirection: "row",
@@ -1679,6 +1762,7 @@ const styles = StyleSheet.create({
     width: "48%",
     borderRadius: 8,
     elevation: 3,
+    backgroundColor: colors.white,
   },
   infoCardContent: {
     flexDirection: "row",
